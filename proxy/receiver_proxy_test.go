@@ -549,3 +549,16 @@ func TestProxyBidSubsidiseBlockCall(t *testing.T) {
 	expectNoRequest(t, proxies[1].localBuilderRequests)
 	expectNoRequest(t, proxies[2].localBuilderRequests)
 }
+
+func TestBuilderNetRootCall(t *testing.T) {
+	proxy, err := StartTestOrderflowProxy("1")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	rr := httptest.NewRecorder()
+	proxy.localServer.Handler.ServeHTTP(rr, req)
+	respBody, err := io.ReadAll(rr.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(respBody), "-----BEGIN CERTIFICATE-----")
+}
