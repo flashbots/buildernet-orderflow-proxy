@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"log/slog"
 	"time"
@@ -23,6 +24,9 @@ const (
 	EthSendRawTransactionMethod = "eth_sendRawTransaction"
 	BidSubsidiseBlockMethod     = "bid_subsidiseBlock"
 )
+
+//go:embed html/index.html
+var LandingPageHTML []byte
 
 var (
 	errUnknownPeer          = errors.New("unknown peers can't send to the public address")
@@ -57,16 +61,6 @@ func (prx *ReceiverProxy) PublicJSONRPCHandler(maxRequestBodySizeBytes int64) (*
 }
 
 func (prx *ReceiverProxy) LocalJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
-	// Static response
-	getRootResponse := `<html>
-	<body>
-	<h1>BuilderNet Orderflow Proxy</h1>
-	<p>Documentation: https://buildernet.org/docs/send-orderflow</p>
-	<p>Current TLS certificate</p>
-	<pre>` + string(prx.PublicCertPEM) + `</pre>
-	</body>
-	</html>`
-
 	handler, err := rpcserver.NewJSONRPCHandler(rpcserver.Methods{
 		EthSendBundleMethod:         prx.EthSendBundleLocal,
 		MevSendBundleMethod:         prx.MevSendBundleLocal,
@@ -79,7 +73,7 @@ func (prx *ReceiverProxy) LocalJSONRPCHandler(maxRequestBodySizeBytes int64) (*r
 			Log:                              prx.Log,
 			MaxRequestBodySizeBytes:          maxRequestBodySizeBytes,
 			VerifyRequestSignatureFromHeader: true,
-			GetResponseContent:               []byte(getRootResponse),
+			GetResponseContent:               LandingPageHTML,
 		},
 	)
 

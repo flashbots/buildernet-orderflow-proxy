@@ -560,5 +560,5 @@ func TestBuilderNetRootCall(t *testing.T) {
 	proxy.localServer.Handler.ServeHTTP(rr, req)
 	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(respBody), "-----BEGIN CERTIFICATE-----")
+	require.Contains(t, string(respBody), "__PUBLIC_CERT_PEM__")
 }
