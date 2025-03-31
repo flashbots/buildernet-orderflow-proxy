@@ -129,6 +129,11 @@ func (prx *SenderProxy) EthSendBundle(ctx context.Context, ethSendBundle rpctype
 	if ethSendBundle.MinTimestamp != nil && *ethSendBundle.MinTimestamp == 0 {
 		ethSendBundle.MinTimestamp = nil
 	}
+	// we set explicitly bundles to be v1 for all protect flow
+	if ethSendBundle.Version == nil || *ethSendBundle.Version == "" {
+		version := rpctypes.BundleVersionV1
+		ethSendBundle.Version = &version
+	}
 
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }

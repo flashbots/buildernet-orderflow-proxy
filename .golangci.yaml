@@ -31,6 +31,7 @@ linters:
     - gocognit
     - nakedret
     - tagliatelle
+    - usetesting
 
     #
     # Disabled because of generics:

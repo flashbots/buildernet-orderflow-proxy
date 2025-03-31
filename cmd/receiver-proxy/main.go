@@ -18,7 +18,7 @@ import (
 	"github.com/urfave/cli/v2" // imports as package "cli"
 )
 
-var flags []cli.Flag = []cli.Flag{
+var flags = []cli.Flag{
 	// input and output
 	&cli.StringFlag{
 		Name:    "local-listen-addr",

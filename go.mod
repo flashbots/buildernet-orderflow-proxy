@@ -1,26 +1,26 @@
 module github.com/flashbots/tdx-orderflow-proxy
 
-go 1.22.0
+go 1.24.0
 
-toolchain go1.23.6
+toolchain go1.24.1
 
 require (
 	github.com/VictoriaMetrics/metrics v1.35.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
-	github.com/ethereum/go-ethereum v1.15.2
-	github.com/flashbots/go-utils v0.8.4-0.20250314133512-c61cce7f9d3f
+	github.com/ethereum/go-ethereum v1.15.5
+	github.com/flashbots/go-utils v0.10.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli/v2 v2.27.2
-	golang.org/x/time v0.5.0
+	github.com/stretchr/testify v1.10.0
+	github.com/urfave/cli/v2 v2.27.5
+	golang.org/x/time v0.9.0
 )
 
 require (
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/consensys/bavard v0.1.22 // indirect
 	github.com/consensys/gnark-crypto v0.14.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/crate-crypto/go-kzg-4844 v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -34,7 +34,7 @@ require (
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
-	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
+	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect

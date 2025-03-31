@@ -281,7 +281,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	client, err := RPCClientWithCertAndSigner(proxies[0].localServerEndpoint, proxies[0].proxy.PublicCertPEM, signer, 1)
 	require.NoError(t, err)
 
-	expectedRequest := `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3e8","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
+	expectedRequest := `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3e8","version":"v2","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
 
 	// we start with no peers
 	builderHubPeers = nil
@@ -314,7 +314,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	expectedRequest = `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3e9","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
+	expectedRequest = `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3e9","version":"v2","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
 	builderRequest = expectRequest(t, proxies[0].localBuilderRequests)
 	require.Equal(t, expectedRequest, builderRequest.body)
 	builderRequest = expectRequest(t, proxies[1].localBuilderRequests)
@@ -336,7 +336,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	expectedRequest = `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3ea","replacementUuid":"550e8400-e29b-41d4-a716-446655440000","replacementNonce":1730000000000000,"signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
+	expectedRequest = `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3ea","replacementUuid":"550e8400-e29b-41d4-a716-446655440000","version":"v2","replacementNonce":1730000000000000,"signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
 	builderRequest = expectRequest(t, proxies[0].localBuilderRequests)
 	require.Equal(t, expectedRequest, builderRequest.body)
 	builderRequest = expectRequest(t, proxies[1].localBuilderRequests)
@@ -352,7 +352,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	expectedRequest = `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3ea","replacementUuid":"550e8400-e29b-41d4-a716-446655440000","replacementNonce":8976,"signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
+	expectedRequest = `{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x3ea","replacementUuid":"550e8400-e29b-41d4-a716-446655440000","version":"v2","replacementNonce":8976,"signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`
 	builderRequest = expectRequest(t, proxies[0].localBuilderRequests)
 	require.Equal(t, expectedRequest, builderRequest.body)
 	builderRequest = expectRequest(t, proxies[1].localBuilderRequests)
@@ -399,8 +399,7 @@ func TestProxySendToArchive(t *testing.T) {
 
 	proxiesFlushQueue()
 	archiveRequest := expectRequest(t, archiveServerRequests)
-
-	expectedArchiveRequest := `{"method":"flashbots_newOrderEvents","params":[{"orderEvents":[{"eth_sendBundle":{"params":{"txs":null,"blockNumber":"0x7b","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"},"metadata":{"receivedAt":1730000000000}}},{"eth_sendBundle":{"params":{"txs":null,"blockNumber":"0x1c8","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"},"metadata":{"receivedAt":1730000000000}}}]}],"id":0,"jsonrpc":"2.0"}`
+	expectedArchiveRequest := `{"method":"flashbots_newOrderEvents","params":[{"orderEvents":[{"eth_sendBundle":{"params":{"txs":null,"blockNumber":"0x7b","version":"v2","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"},"metadata":{"receivedAt":1730000000000}}},{"eth_sendBundle":{"params":{"txs":null,"blockNumber":"0x1c8","version":"v2","signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"},"metadata":{"receivedAt":1730000000000}}}]}],"id":0,"jsonrpc":"2.0"}`
 	require.Equal(t, expectedArchiveRequest, archiveRequest.body)
 }
 

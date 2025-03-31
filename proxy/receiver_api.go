@@ -126,7 +126,12 @@ func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpcty
 
 	if !publicEndpoint {
 		ethSendBundle.SigningAddress = &parsedRequest.signer
-
+		// when receiving orderflow directly we default to v2 (currently latest version)
+		// for non-publicEndpoint we set v1 explicitly on sender_proxy, it might be a bit confusing
+		if ethSendBundle.Version == nil || *ethSendBundle.Version == "" {
+			version := rpctypes.BundleVersionV2
+			ethSendBundle.Version = &version
+		}
 		if ethSendBundle.ReplacementUUID != nil {
 			timestampInt := apiNow().UnixMicro()
 			var timestamp uint64
