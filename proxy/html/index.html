@@ -1,16 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" class="no-js">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+
     <title>BuilderNet Orderflow API</title>
+    <meta name="description" content="">
+
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.1.0/build/pure-min.css" integrity="sha384-yHIFVG6ClnONEA5yB5DJXfW2/KC173DIQrYoZMEtBvGzmf0PKiGyNEqe9N6BNDBH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@2.1.0/build/grids-responsive-min.css" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style type="text/css">
+        body {
+            padding: 10px 40px;
+        }
+
+        pre {
+            text-align: left;
+        }
+
+        hr {
+            border-top: 1px solid #e5e5e5;
+            margin: 40px 0;
+        }
+
+        tt {
+            font-size: 1.2em;
+            background: #129fea1f;
+        }
+
+        li {
+            margin: 2px 0px;
+        }
+
+        a {
+            text-decoration: none;
+            /* border-bottom: 1px dotted black; */
+        }
+
+        a:hover {
+            border-bottom: 1px dotted black;
+            background-color: #129fea1f;
+        }
+
+        .pure-table thead {
+            background-color: #129fea1f;
+        }
+
+
+        .pure-table-striped tr:nth-child(2n-1) td {
+            background: #30d2f80d !important;
+        }
+
+
+        .pure-table tr:hover td {
+            background: #129fea1f !important;
+        }
+
+        pre {
+            border: 1px solid #ccc;
+            background: #f5f5f5;
+            padding: 16px 24px;
+            border-radius: 4px;
+            overflow-x: auto;
+            float: left;
+            clear: both;
+        }
+
+        .clear {
+            clear: both;
+        }
+    </style>
+
+    <script>
+    </script>
 </head>
 
 <body>
-    <h1>BuilderNet Orderflow API</h1>
-    <p>Documentation: https://buildernet.org/docs/send-orderflow</p>
-    <p>Current TLS certificate</p>
-    <pre>__PUBLIC_CERT_PEM__</pre>
-</body>
+    <div class="grids">
+        <div class="content">
+
+            <a href="https://collective.flashbots.net/c/buildernet/31">
+                <img style="float:right; background:white; margin-left: 64px; max-width:64px;" src="https://buildernet.org/img/logo.png" />
+            </a>
+
+            <h1>
+                BuilderNet Orderflow API
+            </h1>
+
+            <h3>Documentation</h3>
+            <ul>
+                <li><a href="https://buildernet.org/docs/send-orderflow">buildernet.org/docs/send-orderflow</a></li>
+                <li><a href="https://buildernet.org">buildernet.org</a></li>
+                <li><a href="https://collective.flashbots.net/c/buildernet/31">forum</a></li>
+            </ul>
+
+            <br>
+
+            <h3>TLS certificate</h3>
+            <p>The BuilderNet Orderflow API uses TLS to encrypt all traffic. </p>
+            <p>TLS certificate of this instance:</p>
+            <pre>-----BEGIN CERTIFICATE-----
+MIIB1DCCAXqgAwIBAgIQA46lzax6nWdHw2HRHemMmjAKBggqhkjOPQQDAjAPMQ0w
+CwYDVQQKEwRBY21lMB4XDTI1MDMyMTA5MzU1N1oXDTI2MDMyMTA5MzU1N1owDzEN
+MAsGA1UEChMEQWNtZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJovYW8kxW+r
+biRdhYiSW0UPHbi5X9DFyEPy4+Hd4O5eoRxsQJlAEeONQhKv/i722GGU/I6+H3Cf
+UUNHFVexfQSjgbcwgbQwDgYDVR0PAQH/BAQDAgKEMBMGA1UdJQQMMAoGCCsGAQUF
+BwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFKq97sbcYELqTddZA9uR5iMl
+cZDxMF0GA1UdEQRWMFSCCWxvY2FsaG9zdII7YnVpbGRlcm5ldC1mbGFzaGJvdHMt
+YXp1cmUtZWFzdHVzMi0wNC5idWlsZGVyLmZsYXNoYm90cy5uZXSHBH8AAAGHBChB
+w7gwCgYIKoZIzj0EAwIDSAAwRQIgNhoX1tHrW0Y5t/jinusx+tX+UT0kCHURbCWq
+yJpZxOACIQCQ3doR0I9aUFjnj9nvsrlxKP+HKS0hUh7117DfL2VYEQ==
+-----END CERTIFICATE-----</pre>
+        </div>
+
+        <div class="clear"></div>
+
+        <p>
+            Note: The certificate changes on every restart of the server. This is a feature, not a bug, as the certificate
+            represents the unique identity of this server, and the private key never leaves in-process memory.
+        </p>
+
+        <br />
+        <h3>Example <tt>curl</tt> request</h3>
+        <p>
+        </p>
+        <pre>curl https://_BUILDERNET_INSTANCE_ \
+    --cacert builder-cert.pem \ # or using --insecure
+    --header 'X-Flashbots-Signature: _public_key_address_:_signature_' \
+    --data '{
+        "jsonrpc":"2.0",
+        "method":"eth_sendRawTransaction",
+        "params":["0x000000..."],
+        "id":1
+    }'</pre>
+        <div class="clear"></div>
+
+        <p>See also the full documentation at <a href="https://buildernet.org/docs/send-orderflow">buildernet.org/docs/send-orderflow</a></p>
+
+
+        <br />
+        <h3>TEE proof validation</h3>
+        <p>
+            You can retrieve the certificate over a TEE-attested channel, verifying the identity of the server, and
+            then use it to verify the TLS connection:
+        </p>
+        <pre># Install attested-get tool
+go install github.com/flashbots/cvm-reverse-proxy/cmd/attested-get
+
+# Get the builder certificate over an attested channel
+attested-get \
+    --addr=https://_BUILDERNET_INSTANCE_:7936/cert \
+    --expected-measurements=https://measurements.builder.flashbots.net \
+    --out-response=builder-cert.pem</pre>
+    </div>
+    <div class="clear"></div>
+    <p>See more details about <tt>attested-get</tt> in the <a href="https://github.com/flashbots/cvm-reverse-proxy/blob/main/cmd/attested-get/main.go">cvm-reverse-proxy repository</a>.</p>
+
 </body>
 
 </html>

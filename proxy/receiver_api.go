@@ -1,9 +1,11 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"errors"
+	"html/template"
 	"log/slog"
 	"time"
 
@@ -26,7 +28,7 @@ const (
 )
 
 //go:embed html/index.html
-var LandingPageHTML []byte
+var landingPageHTML string
 
 var (
 	errUnknownPeer          = errors.New("unknown peers can't send to the public address")
@@ -73,7 +75,7 @@ func (prx *ReceiverProxy) LocalJSONRPCHandler(maxRequestBodySizeBytes int64) (*r
 			Log:                              prx.Log,
 			MaxRequestBodySizeBytes:          maxRequestBodySizeBytes,
 			VerifyRequestSignatureFromHeader: true,
-			GetResponseContent:               LandingPageHTML,
+			GetResponseContent:               landingPageHTML,
 		},
 	)
 
@@ -368,4 +370,23 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 		}
 	}
 	return nil
+}
+
+func (prx *ReceiverProxy) prepHTML() (*template.Template, error) {
+	templ, err := template.New("index").Parse(landingPageHTML)
+	if err != nil {
+		return nil, err
+	}
+
+	htmlData := struct {
+		Cert string
+	}{
+		Cert: prx.cert,
+	}
+	htmlBytes := bytes.Buffer{}
+	err = templ.Execute(&htmlBytes, htmlData)
+	if err != nil {
+		return nil, err
+	}
+
 }

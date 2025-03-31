@@ -234,12 +234,12 @@ func main() {
 				case <-registerContext.Done():
 				}
 			}()
-			err = instance.RegisterSecrets(registerContext)
-			registerCancel()
-			if err != nil {
-				log.Error("Failed to generate and publish secrets", "err", err)
-				return err
-			}
+			// err = instance.RegisterSecrets(registerContext)
+			// registerCancel()
+			// if err != nil {
+			// 	log.Error("Failed to generate and publish secrets", "err", err)
+			// 	return err
+			// }
 
 			localListenAddr := cCtx.String("local-listen-addr")
 			publicListenAddr := cCtx.String("public-listen-addr")
