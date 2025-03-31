@@ -5,12 +5,14 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/flashbots/go-utils/cli"
 )
 
 var (
-	HTTPDefaultReadTimeout  = 60 * time.Second
-	HTTPDefaultWriteTimeout = 30 * time.Second
-	HTTPDefaultIdleTimeout  = 1 * time.Hour
+	HTTPDefaultReadTimeout  = time.Duration(cli.GetEnvInt("HTTP_READ_TIMEOUT_SEC", 60)) * time.Second
+	HTTPDefaultWriteTimeout = time.Duration(cli.GetEnvInt("HTTP_WRITE_TIMEOUT_SEC", 30)) * time.Second
+	HTTPDefaultIdleTimeout  = time.Duration(cli.GetEnvInt("HTTP_IDLE_TIMEOUT_SEC", 3600)) * time.Second
 )
 
 type ReceiverProxyServers struct {
