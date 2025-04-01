@@ -64,6 +64,11 @@ GLOBAL OPTIONS:
    --help, -h                                  show help
 ```
 
+Additional receiver configuration environment variables:
+
+* `HTTP_READ_TIMEOUT_SEC` - timeout for reading the request, default 60 seconds
+* `HTTP_WRITE_TIMEOUT_SEC` - timeout for writing the response, default 30 seconds
+* `HTTP_IDLE_TIMEOUT_SEC` - timeout for idle connection, default 1 hour (3600 seconds)
 
 ## Run sender proxy
 
