@@ -24,21 +24,28 @@ func ValidateEthSendBundle(args *rpctypes.EthSendBundleArgs, publicEndpoint bool
 			return errSigningAddress
 		}
 	}
-	if len(args.DroppingTxHashes) > 0 {
-		return errDroppingTxHashed
+
+	// do not allow for new bundle fields for public endpoint
+	if publicEndpoint {
+		if len(args.DroppingTxHashes) > 0 {
+			return errDroppingTxHashed
+		}
+
+		if args.RefundPercent != nil {
+			return errRefundPercent
+		}
+		if args.RefundRecipient != nil {
+			return errRefundRecipient
+		}
+		if len(args.RefundTxHashes) > 0 {
+			return errRefundTxHashes
+		}
 	}
+
 	if args.UUID != nil {
 		return errUUID
 	}
-	if args.RefundPercent != nil {
-		return errRefundPercent
-	}
-	if args.RefundRecipient != nil {
-		return errRefundRecipient
-	}
-	if len(args.RefundTxHashes) > 0 {
-		return errRefundTxHashes
-	}
+
 	return nil
 }
 
