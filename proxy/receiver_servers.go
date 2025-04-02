@@ -17,23 +17,23 @@ var (
 
 type ReceiverProxyServers struct {
 	proxy        *ReceiverProxy
-	publicServer *http.Server
-	localServer  *http.Server
+	userServer   *http.Server
+	systemServer *http.Server
 	certServer   *http.Server
 }
 
-func StartReceiverServers(proxy *ReceiverProxy, publicListenAddress, localListenAddress, certListenAddress string) (*ReceiverProxyServers, error) {
-	publicServer := &http.Server{
-		Addr:         publicListenAddress,
-		Handler:      proxy.PublicHandler,
+func StartReceiverServers(proxy *ReceiverProxy, userListenAddress, systemListenAddress, certListenAddress string) (*ReceiverProxyServers, error) {
+	userServer := &http.Server{
+		Addr:         userListenAddress,
+		Handler:      proxy.UserHandler,
 		TLSConfig:    proxy.TLSConfig(),
 		ReadTimeout:  HTTPDefaultReadTimeout,
 		WriteTimeout: HTTPDefaultWriteTimeout,
 		IdleTimeout:  HTTPDefaultIdleTimeout,
 	}
-	localServer := &http.Server{
-		Addr:         localListenAddress,
-		Handler:      proxy.LocalHandler,
+	systemServer := &http.Server{
+		Addr:         systemListenAddress,
+		Handler:      proxy.SystemHandler,
 		TLSConfig:    proxy.TLSConfig(),
 		ReadTimeout:  HTTPDefaultReadTimeout,
 		WriteTimeout: HTTPDefaultWriteTimeout,
@@ -50,14 +50,14 @@ func StartReceiverServers(proxy *ReceiverProxy, publicListenAddress, localListen
 	errCh := make(chan error)
 
 	go func() {
-		if err := publicServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			err = errors.Join(errors.New("public HTTP server failed"), err)
+		if err := systemServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			err = errors.Join(errors.New("system HTTP server failed"), err)
 			errCh <- err
 		}
 	}()
 	go func() {
-		if err := localServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			err = errors.Join(errors.New("local HTTP server failed"), err)
+		if err := userServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			err = errors.Join(errors.New("user HTTP server failed"), err)
 			errCh <- err
 		}
 	}()
@@ -86,15 +86,15 @@ func StartReceiverServers(proxy *ReceiverProxy, publicListenAddress, localListen
 
 	return &ReceiverProxyServers{
 		proxy:        proxy,
-		publicServer: publicServer,
-		localServer:  localServer,
+		userServer:   userServer,
+		systemServer: systemServer,
 		certServer:   certServer,
 	}, nil
 }
 
 func (s *ReceiverProxyServers) Stop() {
-	_ = s.publicServer.Close()
-	_ = s.localServer.Close()
+	_ = s.userServer.Close()
+	_ = s.systemServer.Close()
 	_ = s.certServer.Close()
 	s.proxy.Stop()
 }
