@@ -63,6 +63,11 @@ func (prx *ReceiverProxy) PublicJSONRPCHandler(maxRequestBodySizeBytes int64) (*
 }
 
 func (prx *ReceiverProxy) LocalJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
+	landingPageHTML, err := prx.prepHTML()
+	if err != nil {
+		return nil, err
+	}
+
 	handler, err := rpcserver.NewJSONRPCHandler(rpcserver.Methods{
 		EthSendBundleMethod:         prx.EthSendBundleLocal,
 		MevSendBundleMethod:         prx.MevSendBundleLocal,
@@ -372,7 +377,7 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 	return nil
 }
 
-func (prx *ReceiverProxy) prepHTML() (*template.Template, error) {
+func (prx *ReceiverProxy) prepHTML() ([]byte, error) {
 	templ, err := template.New("index").Parse(landingPageHTML)
 	if err != nil {
 		return nil, err
@@ -381,7 +386,7 @@ func (prx *ReceiverProxy) prepHTML() (*template.Template, error) {
 	htmlData := struct {
 		Cert string
 	}{
-		Cert: prx.cert,
+		Cert: string(prx.PublicCertPEM),
 	}
 	htmlBytes := bytes.Buffer{}
 	err = templ.Execute(&htmlBytes, htmlData)
@@ -389,4 +394,5 @@ func (prx *ReceiverProxy) prepHTML() (*template.Template, error) {
 		return nil, err
 	}
 
+	return htmlBytes.Bytes(), nil
 }
