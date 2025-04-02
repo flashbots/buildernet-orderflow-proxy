@@ -45,8 +45,8 @@ type ReceiverProxy struct {
 
 	localBuilder rpcclient.RPCClient
 
-	PublicHandler http.Handler
-	LocalHandler  http.Handler
+	UserHandler   http.Handler
+	SystemHandler http.Handler
 	CertHandler   http.Handler // this endpoint just returns generated certificate
 
 	updatePeers chan []ConfighubBuilder
@@ -136,13 +136,13 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 	if err != nil {
 		return nil, err
 	}
-	prx.PublicHandler = publicHandler
+	prx.SystemHandler = publicHandler
 
 	localHandler, err := prx.LocalJSONRPCHandler(maxRequestBodySizeBytes)
 	if err != nil {
 		return nil, err
 	}
-	prx.LocalHandler = localHandler
+	prx.UserHandler = localHandler
 
 	prx.CertHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/octet-stream")
