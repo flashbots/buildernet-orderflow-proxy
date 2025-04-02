@@ -18,16 +18,21 @@ import (
 	"github.com/urfave/cli/v2" // imports as package "cli"
 )
 
+const (
+	flagLocalListenAddr  = "local-listen-addr"
+	flagPublicListenAddr = "public-listen-addr"
+)
+
 var flags = []cli.Flag{
-	// input and output
+	// Servers config (NEW)
 	&cli.StringFlag{
-		Name:    "local-listen-addr",
+		Name:    flagLocalListenAddr,
 		Value:   "127.0.0.1:443",
 		Usage:   "address to listen on for orderflow proxy API for external users and local operator",
 		EnvVars: []string{"LOCAL_LISTEN_ADDR"},
 	},
 	&cli.StringFlag{
-		Name:    "public-listen-addr",
+		Name:    flagPublicListenAddr,
 		Value:   "127.0.0.1:5544",
 		Usage:   "address to listen on for orderflow proxy API for other network participants",
 		EnvVars: []string{"PUBLIC_LISTEN_ADDR"},
@@ -38,6 +43,8 @@ var flags = []cli.Flag{
 		Usage:   "address to listen on for orderflow proxy serving its SSL certificate on /cert",
 		EnvVars: []string{"CERT_LISTEN_ADDR"},
 	},
+
+	// Connections to Builder, BuilderHub, RPC and block-processor
 	&cli.StringFlag{
 		Name:    "builder-endpoint",
 		Value:   "http://127.0.0.1:8645",
@@ -62,6 +69,8 @@ var flags = []cli.Flag{
 		Usage:   "address of the orderflow archive endpoint (block-processor)",
 		EnvVars: []string{"ORDERFLOW_ARCHIVE_ENDPOINT"},
 	},
+
+	// Various configs
 	&cli.StringFlag{
 		Name:    "flashbots-orderflow-signer-address",
 		Value:   "0x5015Fa72E34f75A9eC64f44a4Fcf0837919D1bB7",
@@ -87,7 +96,7 @@ var flags = []cli.Flag{
 		EnvVars: []string{"MAX_LOCAL_RPS"},
 	},
 
-	// certificate config
+	// Certificate config
 	&cli.DurationFlag{
 		Name:    "cert-duration",
 		Value:   time.Hour * 24 * 365,
@@ -101,7 +110,7 @@ var flags = []cli.Flag{
 		EnvVars: []string{"CERT_HOSTS"},
 	},
 
-	// logging, metrics and debug
+	// Logging, metrics and debug
 	&cli.StringFlag{
 		Name:    "metrics-addr",
 		Value:   "127.0.0.1:8090",
@@ -142,125 +151,128 @@ var flags = []cli.Flag{
 
 func main() {
 	app := &cli.App{
-		Name:  "receiver-proxy",
-		Usage: "Serve API, and metrics",
-		Flags: flags,
-		Action: func(cCtx *cli.Context) error {
-			logJSON := cCtx.Bool("log-json")
-			logDebug := cCtx.Bool("log-debug")
-			logUID := cCtx.Bool("log-uid")
-			logService := cCtx.String("log-service")
-
-			log := common.SetupLogger(&common.LoggingOpts{
-				Debug:   logDebug,
-				JSON:    logJSON,
-				Service: logService,
-				Version: common.Version,
-			})
-
-			if logUID {
-				id := uuid.Must(uuid.NewRandom())
-				log = log.With("uid", id.String())
-			}
-
-			exit := make(chan os.Signal, 1)
-			signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
-
-			// metrics server
-			go func() {
-				metricsAddr := cCtx.String("metrics-addr")
-				usePprof := cCtx.Bool("pprof")
-				metricsMux := http.NewServeMux()
-				metricsMux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-					metrics.WritePrometheus(w, true)
-				})
-				if usePprof {
-					metricsMux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
-					metricsMux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-					metricsMux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-					metricsMux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-					metricsMux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-				}
-
-				metricsServer := &http.Server{
-					Addr:              metricsAddr,
-					ReadHeaderTimeout: 5 * time.Second,
-					Handler:           metricsMux,
-				}
-
-				err := metricsServer.ListenAndServe()
-				if err != nil {
-					log.Error("Failed to start metrics server", "err", err)
-				}
-			}()
-
-			builderEndpoint := cCtx.String("builder-endpoint")
-			rpcEndpoint := cCtx.String("rpc-endpoint")
-			certDuration := cCtx.Duration("cert-duration")
-			certHosts := cCtx.StringSlice("cert-hosts")
-			builderConfigHubEndpoint := cCtx.String("builder-confighub-endpoint")
-			archiveEndpoint := cCtx.String("orderflow-archive-endpoint")
-			flashbotsSignerStr := cCtx.String("flashbots-orderflow-signer-address")
-			flashbotsSignerAddress := eth.HexToAddress(flashbotsSignerStr)
-			maxRequestBodySizeBytes := cCtx.Int64("max-request-body-size-bytes")
-			connectionsPerPeer := cCtx.Int("connections-per-peer")
-			maxLocalRPS := cCtx.Int("max-local-requests-per-second")
-
-			proxyConfig := &proxy.ReceiverProxyConfig{
-				ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
-				CertValidDuration:           certDuration,
-				CertHosts:                   certHosts,
-				BuilderConfigHubEndpoint:    builderConfigHubEndpoint,
-				ArchiveEndpoint:             archiveEndpoint,
-				ArchiveConnections:          connectionsPerPeer,
-				LocalBuilderEndpoint:        builderEndpoint,
-				EthRPC:                      rpcEndpoint,
-				MaxRequestBodySizeBytes:     maxRequestBodySizeBytes,
-				ConnectionsPerPeer:          connectionsPerPeer,
-				MaxLocalRPS:                 maxLocalRPS,
-			}
-
-			instance, err := proxy.NewReceiverProxy(*proxyConfig)
-			if err != nil {
-				log.Error("Failed to create proxy server", "err", err)
-				return err
-			}
-
-			registerContext, registerCancel := context.WithCancel(context.Background())
-			go func() {
-				select {
-				case <-exit:
-					registerCancel()
-				case <-registerContext.Done():
-				}
-			}()
-
-			err = instance.RegisterSecrets(registerContext)
-			registerCancel()
-			if err != nil {
-				log.Error("Failed to generate and publish secrets", "err", err)
-				return err
-			}
-
-			localListenAddr := cCtx.String("local-listen-addr")
-			publicListenAddr := cCtx.String("public-listen-addr")
-			certListenAddr := cCtx.String("cert-listen-addr")
-
-			servers, err := proxy.StartReceiverServers(instance, publicListenAddr, localListenAddr, certListenAddr)
-			if err != nil {
-				log.Error("Failed to start proxy server", "err", err)
-				return err
-			}
-
-			log.Info("Started receiver proxy", "publicListenAddress", publicListenAddr, "localListenAddress", localListenAddr, "certListenAddress", certListenAddr)
-
-			<-exit
-			servers.Stop()
-			return nil
-		},
+		Name:    "receiver-proxy",
+		Usage:   "Serve API, and metrics",
+		Flags:   flags,
+		Version: common.Version,
+		Action:  runMain,
 	}
 
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func runMain(cCtx *cli.Context) error {
+	logJSON := cCtx.Bool("log-json")
+	logDebug := cCtx.Bool("log-debug")
+	logUID := cCtx.Bool("log-uid")
+	logService := cCtx.String("log-service")
+
+	log := common.SetupLogger(&common.LoggingOpts{
+		Debug:   logDebug,
+		JSON:    logJSON,
+		Service: logService,
+		Version: common.Version,
+	})
+
+	if logUID {
+		id := uuid.Must(uuid.NewRandom())
+		log = log.With("uid", id.String())
+	}
+
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
+
+	// metrics server
+	go func() {
+		metricsAddr := cCtx.String("metrics-addr")
+		usePprof := cCtx.Bool("pprof")
+		metricsMux := http.NewServeMux()
+		metricsMux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+			metrics.WritePrometheus(w, true)
+		})
+		if usePprof {
+			metricsMux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+			metricsMux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+			metricsMux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+			metricsMux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+			metricsMux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+		}
+
+		metricsServer := &http.Server{
+			Addr:              metricsAddr,
+			ReadHeaderTimeout: 5 * time.Second,
+			Handler:           metricsMux,
+		}
+
+		err := metricsServer.ListenAndServe()
+		if err != nil {
+			log.Error("Failed to start metrics server", "err", err)
+		}
+	}()
+
+	builderEndpoint := cCtx.String("builder-endpoint")
+	rpcEndpoint := cCtx.String("rpc-endpoint")
+	certDuration := cCtx.Duration("cert-duration")
+	certHosts := cCtx.StringSlice("cert-hosts")
+	builderConfigHubEndpoint := cCtx.String("builder-confighub-endpoint")
+	archiveEndpoint := cCtx.String("orderflow-archive-endpoint")
+	flashbotsSignerStr := cCtx.String("flashbots-orderflow-signer-address")
+	flashbotsSignerAddress := eth.HexToAddress(flashbotsSignerStr)
+	maxRequestBodySizeBytes := cCtx.Int64("max-request-body-size-bytes")
+	connectionsPerPeer := cCtx.Int("connections-per-peer")
+	maxLocalRPS := cCtx.Int("max-local-requests-per-second")
+
+	proxyConfig := &proxy.ReceiverProxyConfig{
+		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
+		CertValidDuration:           certDuration,
+		CertHosts:                   certHosts,
+		BuilderConfigHubEndpoint:    builderConfigHubEndpoint,
+		ArchiveEndpoint:             archiveEndpoint,
+		ArchiveConnections:          connectionsPerPeer,
+		LocalBuilderEndpoint:        builderEndpoint,
+		EthRPC:                      rpcEndpoint,
+		MaxRequestBodySizeBytes:     maxRequestBodySizeBytes,
+		ConnectionsPerPeer:          connectionsPerPeer,
+		MaxLocalRPS:                 maxLocalRPS,
+	}
+
+	instance, err := proxy.NewReceiverProxy(*proxyConfig)
+	if err != nil {
+		log.Error("Failed to create proxy server", "err", err)
+		return err
+	}
+
+	registerContext, registerCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-exit:
+			registerCancel()
+		case <-registerContext.Done():
+		}
+	}()
+
+	err = instance.RegisterSecrets(registerContext)
+	registerCancel()
+	if err != nil {
+		log.Error("Failed to generate and publish secrets", "err", err)
+		return err
+	}
+
+	localListenAddr := cCtx.String(flagLocalListenAddr)
+	publicListenAddr := cCtx.String(flagPublicListenAddr)
+	certListenAddr := cCtx.String("cert-listen-addr")
+
+	servers, err := proxy.StartReceiverServers(instance, publicListenAddr, localListenAddr, certListenAddr)
+	if err != nil {
+		log.Error("Failed to start proxy server", "err", err)
+		return err
+	}
+
+	log.Info("Started receiver proxy", "publicListenAddress", publicListenAddr, "localListenAddress", localListenAddr, "certListenAddress", certListenAddr)
+
+	<-exit
+	servers.Stop()
+	return nil
 }
