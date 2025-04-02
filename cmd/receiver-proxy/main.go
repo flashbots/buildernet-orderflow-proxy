@@ -19,29 +19,48 @@ import (
 )
 
 const (
-	flagLocalListenAddr  = "local-listen-addr"
-	flagPublicListenAddr = "public-listen-addr"
+	flagUserListenAddr   = "user-listen-addr"
+	flagSystemListenAddr = "system-listen-addr"
+	flagCertListenAddr   = "cert-listen-addr"
+
+	// deprecated flags
+	flagDeprecatedLocalListenAddr  = "local-listen-addr"
+	flagDeprecatedPublicListenAddr = "public-listen-addr"
 )
 
 var flags = []cli.Flag{
 	// Servers config (NEW)
 	&cli.StringFlag{
-		Name:    flagLocalListenAddr,
+		Name:    flagUserListenAddr,
 		Value:   "127.0.0.1:443",
-		Usage:   "address to listen on for orderflow proxy API for external users and local operator",
-		EnvVars: []string{"LOCAL_LISTEN_ADDR"},
+		Usage:   "server to receive orderflow from external users/public",
+		EnvVars: []string{"USER_LISTEN_ADDR"},
 	},
 	&cli.StringFlag{
-		Name:    flagPublicListenAddr,
+		Name:    flagSystemListenAddr,
 		Value:   "127.0.0.1:5544",
-		Usage:   "address to listen on for orderflow proxy API for other network participants",
-		EnvVars: []string{"PUBLIC_LISTEN_ADDR"},
+		Usage:   "server to receive orderflow from BuilderNet network",
+		EnvVars: []string{"SYSTEM_LISTEN_ADDR"},
 	},
 	&cli.StringFlag{
-		Name:    "cert-listen-addr",
+		Name:    flagCertListenAddr,
 		Value:   "127.0.0.1:14727",
 		Usage:   "address to listen on for orderflow proxy serving its SSL certificate on /cert",
 		EnvVars: []string{"CERT_LISTEN_ADDR"},
+	},
+
+	// Servers config (DEPRECATED)
+	&cli.StringFlag{
+		Name:    flagDeprecatedLocalListenAddr,
+		Value:   "127.0.0.1:443",
+		Usage:   "address to listen on for orderflow proxy API for external users and local operator. DEPRECATED, use user-listen-addr.",
+		EnvVars: []string{"LOCAL_LISTEN_ADDR"},
+	},
+	&cli.StringFlag{
+		Name:    flagDeprecatedPublicListenAddr,
+		Value:   "127.0.0.1:5544",
+		Usage:   "address to listen on for orderflow proxy API for other network participants. DEPRECATED, use system-listen-addr.",
+		EnvVars: []string{"PUBLIC_LISTEN_ADDR"},
 	},
 
 	// Connections to Builder, BuilderHub, RPC and block-processor
@@ -152,7 +171,7 @@ var flags = []cli.Flag{
 func main() {
 	app := &cli.App{
 		Name:    "receiver-proxy",
-		Usage:   "Serve API, and metrics",
+		Usage:   "Serve API and metrics",
 		Flags:   flags,
 		Version: common.Version,
 		Action:  runMain,
@@ -260,17 +279,23 @@ func runMain(cCtx *cli.Context) error {
 		return err
 	}
 
-	localListenAddr := cCtx.String(flagLocalListenAddr)
-	publicListenAddr := cCtx.String(flagPublicListenAddr)
-	certListenAddr := cCtx.String("cert-listen-addr")
+	userListenAddr := cCtx.String(flagUserListenAddr)
+	if userListenAddr == "" { // for backward compatibility
+		userListenAddr = cCtx.String(flagDeprecatedLocalListenAddr)
+	}
+	systemListenAddr := cCtx.String(flagSystemListenAddr)
+	if systemListenAddr == "" { // for backward compatibility
+		systemListenAddr = cCtx.String(flagDeprecatedPublicListenAddr)
+	}
+	certListenAddr := cCtx.String(flagCertListenAddr)
 
-	servers, err := proxy.StartReceiverServers(instance, publicListenAddr, localListenAddr, certListenAddr)
+	servers, err := proxy.StartReceiverServers(instance, userListenAddr, systemListenAddr, certListenAddr)
 	if err != nil {
 		log.Error("Failed to start proxy server", "err", err)
 		return err
 	}
 
-	log.Info("Started receiver proxy", "publicListenAddress", publicListenAddr, "localListenAddress", localListenAddr, "certListenAddress", certListenAddr)
+	log.Info("Started receiver proxy", "userListenAddress", userListenAddr, "systemListenAddress", systemListenAddr, "certListenAddress", certListenAddr)
 
 	<-exit
 	servers.Stop()

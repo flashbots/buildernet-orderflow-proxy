@@ -80,7 +80,7 @@ func StartTestOrderflowProxy(name string) (*OrderflowProxyTestSetup, error) {
 
 	proxy := createProxy(localBuilderServer.URL, name)
 	publicProxyServer := &http.Server{ //nolint:gosec
-		Handler:   proxy.PublicHandler,
+		Handler:   proxy.SystemHandler,
 		TLSConfig: proxy.TLSConfig(),
 	}
 	publicListener, err := net.Listen("tcp", ":0") //nolint:gosec
@@ -92,7 +92,7 @@ func StartTestOrderflowProxy(name string) (*OrderflowProxyTestSetup, error) {
 	ip := fmt.Sprintf("127.0.0.1:%d", publicListener.Addr().(*net.TCPAddr).Port)                           //nolint:forcetypeassert
 
 	localProxyServer := &http.Server{ //nolint:gosec
-		Handler:   proxy.LocalHandler,
+		Handler:   proxy.UserHandler,
 		TLSConfig: proxy.TLSConfig(),
 	}
 	localListener, err := net.Listen("tcp", ":0") //nolint:gosec
