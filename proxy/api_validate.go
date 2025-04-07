@@ -19,6 +19,7 @@ var (
 	errInvalidVersion               = errors.New("invalid version")
 )
 
+// EnsureReplacementUUID updates bundle with consistent replacement uuid value (falling back to `uuid` field if needed)
 func EnsureReplacementUUID(args *rpctypes.EthSendBundleArgs) (*rpctypes.EthSendBundleArgs, error) {
 	if args.UUID == nil {
 		return args, nil
