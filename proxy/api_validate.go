@@ -13,7 +13,7 @@ var (
 	errRefundPercent                = errors.New("refund percent field should not be set")
 	errRefundRecipient              = errors.New("refund recipient field should not be set")
 	errRefundTxHashes               = errors.New("refund tx hashes field should not be set")
-	errReplacementSet               = errors.New("one of uuid or replacement_uuid fields should be empty")
+	errReplacementSet               = errors.New("one of uuid or replacementUuid fields should be empty")
 	errLocalEndpointSbundleMetadata = errors.New("mev share bundle should not contain metadata when sent to local endpoint")
 	errVersionNotSet                = errors.New("version field should be set")
 	errInvalidVersion               = errors.New("invalid version")
