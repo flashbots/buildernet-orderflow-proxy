@@ -23,11 +23,6 @@ const (
 	flagSystemListenAddr = "system-listen-addr"
 	flagCertListenAddr   = "cert-listen-addr"
 	flagMaxUserRPS       = "max-user-requests-per-second"
-
-	// deprecated flags
-	flagDeprecatedLocalListenAddr  = "local-listen-addr"
-	flagDeprecatedPublicListenAddr = "public-listen-addr"
-	flagDeprecatedMaxLocalRPS      = "max-local-requests-per-second"
 )
 
 var flags = []cli.Flag{
@@ -49,20 +44,6 @@ var flags = []cli.Flag{
 		Value:   "127.0.0.1:14727",
 		Usage:   "address to listen on for orderflow proxy serving its SSL certificate on /cert",
 		EnvVars: []string{"CERT_LISTEN_ADDR"},
-	},
-
-	// Servers config (DEPRECATED)
-	&cli.StringFlag{
-		Name:    flagDeprecatedLocalListenAddr,
-		Value:   "127.0.0.1:443",
-		Usage:   "address to listen on for orderflow proxy API for external users and local operator. DEPRECATED, use user-listen-addr.",
-		EnvVars: []string{"LOCAL_LISTEN_ADDR"},
-	},
-	&cli.StringFlag{
-		Name:    flagDeprecatedPublicListenAddr,
-		Value:   "127.0.0.1:5544",
-		Usage:   "address to listen on for orderflow proxy API for other network participants. DEPRECATED, use system-listen-addr.",
-		EnvVars: []string{"PUBLIC_LISTEN_ADDR"},
 	},
 
 	// Connections to Builder, BuilderHub, RPC and block-processor
@@ -113,14 +94,8 @@ var flags = []cli.Flag{
 	&cli.IntFlag{
 		Name:    flagMaxUserRPS,
 		Value:   0,
-		Usage:   "Maximum number of unique user requests per second per IP (set 0 to disable)",
+		Usage:   "Maximum number of unique user requests per second (set 0 to disable)",
 		EnvVars: []string{"MAX_USER_RPS"},
-	},
-	&cli.IntFlag{
-		Name:    flagDeprecatedMaxLocalRPS,
-		Value:   0,
-		Usage:   "Maximum number of unique local requests per second (DEPRECATED, use max-user-requests-per-second)",
-		EnvVars: []string{"MAX_LOCAL_RPS"},
 	},
 
 	// Certificate config
@@ -251,9 +226,6 @@ func runMain(cCtx *cli.Context) error {
 	connectionsPerPeer := cCtx.Int("connections-per-peer")
 
 	maxUserRPS := cCtx.Int(flagMaxUserRPS)
-	if maxUserRPS == 0 {
-		maxUserRPS = cCtx.Int(flagDeprecatedMaxLocalRPS)
-	}
 
 	proxyConfig := &proxy.ReceiverProxyConfig{
 		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
@@ -292,13 +264,7 @@ func runMain(cCtx *cli.Context) error {
 	}
 
 	userListenAddr := cCtx.String(flagUserListenAddr)
-	if userListenAddr == "" { // for backward compatibility
-		userListenAddr = cCtx.String(flagDeprecatedLocalListenAddr)
-	}
 	systemListenAddr := cCtx.String(flagSystemListenAddr)
-	if systemListenAddr == "" { // for backward compatibility
-		systemListenAddr = cCtx.String(flagDeprecatedPublicListenAddr)
-	}
 	certListenAddr := cCtx.String(flagCertListenAddr)
 
 	servers, err := proxy.StartReceiverServers(instance, userListenAddr, systemListenAddr, certListenAddr)
