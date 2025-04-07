@@ -22,10 +22,12 @@ const (
 	flagUserListenAddr   = "user-listen-addr"
 	flagSystemListenAddr = "system-listen-addr"
 	flagCertListenAddr   = "cert-listen-addr"
+	flagMaxUserRPS       = "max-user-requests-per-second"
 
 	// deprecated flags
 	flagDeprecatedLocalListenAddr  = "local-listen-addr"
 	flagDeprecatedPublicListenAddr = "public-listen-addr"
+	flagDeprecatedMaxLocalRPS      = "max-local-requests-per-second"
 )
 
 var flags = []cli.Flag{
@@ -109,9 +111,15 @@ var flags = []cli.Flag{
 		EnvVars: []string{"CONN_PER_PEER"},
 	},
 	&cli.IntFlag{
-		Name:    "max-local-requests-per-second",
-		Value:   100,
-		Usage:   "Maximum number of unique local requests per second",
+		Name:    flagMaxUserRPS,
+		Value:   0,
+		Usage:   "Maximum number of unique user requests per second per IP (set 0 to disable)",
+		EnvVars: []string{"MAX_USER_RPS"},
+	},
+	&cli.IntFlag{
+		Name:    flagDeprecatedMaxLocalRPS,
+		Value:   0,
+		Usage:   "Maximum number of unique local requests per second (DEPRECATED, use max-user-requests-per-second)",
 		EnvVars: []string{"MAX_LOCAL_RPS"},
 	},
 
@@ -241,7 +249,11 @@ func runMain(cCtx *cli.Context) error {
 	flashbotsSignerAddress := eth.HexToAddress(flashbotsSignerStr)
 	maxRequestBodySizeBytes := cCtx.Int64("max-request-body-size-bytes")
 	connectionsPerPeer := cCtx.Int("connections-per-peer")
-	maxLocalRPS := cCtx.Int("max-local-requests-per-second")
+
+	maxUserRPS := cCtx.Int(flagMaxUserRPS)
+	if maxUserRPS == 0 {
+		maxUserRPS = cCtx.Int(flagDeprecatedMaxLocalRPS)
+	}
 
 	proxyConfig := &proxy.ReceiverProxyConfig{
 		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
@@ -254,7 +266,7 @@ func runMain(cCtx *cli.Context) error {
 		EthRPC:                      rpcEndpoint,
 		MaxRequestBodySizeBytes:     maxRequestBodySizeBytes,
 		ConnectionsPerPeer:          connectionsPerPeer,
-		MaxLocalRPS:                 maxLocalRPS,
+		MaxUserRPS:                  maxUserRPS,
 	}
 
 	instance, err := proxy.NewReceiverProxy(*proxyConfig)

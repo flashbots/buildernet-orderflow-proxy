@@ -64,7 +64,7 @@ type ReceiverProxy struct {
 
 	peerUpdaterClose chan struct{}
 
-	localAPIRateLimiter *rate.Limiter
+	userAPIRateLimiter *rate.Limiter
 }
 
 type ReceiverProxyConstantConfig struct {
@@ -90,7 +90,7 @@ type ReceiverProxyConfig struct {
 	MaxRequestBodySizeBytes int64
 
 	ConnectionsPerPeer int
-	MaxLocalRPS        int
+	MaxUserRPS         int
 }
 
 func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
@@ -111,11 +111,11 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 
 	localBuilder := rpcclient.NewClient(config.LocalBuilderEndpoint)
 
-	limit := rate.Limit(config.MaxLocalRPS)
-	if config.MaxLocalRPS == 0 {
+	limit := rate.Limit(config.MaxUserRPS)
+	if config.MaxUserRPS == 0 {
 		limit = rate.Inf
 	}
-	localAPIRateLimiter := rate.NewLimiter(limit, config.MaxLocalRPS)
+	userAPIRateLimiter := rate.NewLimiter(limit, config.MaxUserRPS)
 	prx := &ReceiverProxy{
 		ReceiverProxyConstantConfig: config.ReceiverProxyConstantConfig,
 		ConfigHub:                   NewBuilderConfigHub(config.Log, config.BuilderConfigHubEndpoint),
@@ -125,24 +125,24 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		localBuilder:                localBuilder,
 		requestUniqueKeysRLU:        expirable.NewLRU[uuid.UUID, struct{}](requestsRLUSize, nil, requestsRLUTTL),
 		replacementNonceRLU:         expirable.NewLRU[replacementNonceKey, int](replacementNonceSize, nil, replacementNonceTTL),
-		localAPIRateLimiter:         localAPIRateLimiter,
+		userAPIRateLimiter:          userAPIRateLimiter,
 	}
 	maxRequestBodySizeBytes := DefaultMaxRequestBodySizeBytes
 	if config.MaxRequestBodySizeBytes != 0 {
 		maxRequestBodySizeBytes = config.MaxRequestBodySizeBytes
 	}
 
-	publicHandler, err := prx.PublicJSONRPCHandler(maxRequestBodySizeBytes)
+	systemHandler, err := prx.SystemJSONRPCHandler(maxRequestBodySizeBytes)
 	if err != nil {
 		return nil, err
 	}
-	prx.SystemHandler = publicHandler
+	prx.SystemHandler = systemHandler
 
-	localHandler, err := prx.LocalJSONRPCHandler(maxRequestBodySizeBytes)
+	userHandler, err := prx.UserJSONRPCHandler(maxRequestBodySizeBytes)
 	if err != nil {
 		return nil, err
 	}
-	prx.UserHandler = localHandler
+	prx.UserHandler = userHandler
 
 	prx.CertHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/octet-stream")

@@ -18,7 +18,7 @@ var (
 
 	shareQueueInternalErrors = metrics.NewCounter("orderflow_proxy_share_queue_internal_errors")
 
-	apiLocalRateLimits = metrics.NewCounter("orderflow_proxy_api_local_rate_limits")
+	apiUserRateLimits = metrics.NewCounter("orderflow_proxy_api_user_rate_limits")
 )
 
 const (
@@ -40,8 +40,8 @@ func incAPIDuplicateRequestsByPeer(peer string) {
 	metrics.GetOrCreateCounter(l).Inc()
 }
 
-func incAPILocalRateLimits() {
-	apiLocalRateLimits.Inc()
+func incAPIUserRateLimits() {
+	apiUserRateLimits.Inc()
 }
 
 func incShareQueuePeerStallingErrors(peer string) {

@@ -186,7 +186,7 @@ func (prx *SenderProxy) BidSubsidiseBlock(ctx context.Context, bidSubsidiseBlock
 func (prx *SenderProxy) HandleParsedRequest(ctx context.Context, parsedRequest ParsedRequest) error {
 	parsedRequest.receivedAt = apiNow()
 	// we set it explicitly to note that we need to proxy all calls to all peers
-	parsedRequest.publicEndpoint = false
+	parsedRequest.systemEndpoint = false
 	prx.Log.Debug("Received request", slog.String("method", parsedRequest.method))
 
 	select {

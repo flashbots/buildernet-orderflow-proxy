@@ -82,7 +82,7 @@ func (sq *ShareQueue) Run() {
 			if localBuilder != nil {
 				localBuilder.SendRequest(sq.log, req)
 			}
-			if !req.publicEndpoint {
+			if !req.systemEndpoint {
 				for _, peer := range peers {
 					peer.SendRequest(sq.log, req)
 				}

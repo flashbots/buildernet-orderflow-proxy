@@ -31,10 +31,10 @@ const (
 var landingPageHTML string
 
 var (
-	errUnknownPeer          = errors.New("unknown peers can't send to the public address")
-	errSubsidyWrongEndpoint = errors.New("subsidy can only be called on public method")
+	errUnknownPeer          = errors.New("unknown peers can't send to the system address")
+	errSubsidyWrongEndpoint = errors.New("subsidy can only be called on system API")
 	errSubsidyWrongCaller   = errors.New("subsidy can only be called by Flashbots")
-	errRateLimiting         = errors.New("requests to local API are rate limited")
+	errRateLimiting         = errors.New("requests to user API are rate limited")
 
 	errUUIDParse = errors.New("failed to parse UUID")
 
@@ -43,16 +43,16 @@ var (
 	handleParsedRequestTimeout = time.Second * 1
 )
 
-func (prx *ReceiverProxy) PublicJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
+func (prx *ReceiverProxy) SystemJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
 	handler, err := rpcserver.NewJSONRPCHandler(rpcserver.Methods{
-		EthSendBundleMethod:         prx.EthSendBundlePublic,
-		MevSendBundleMethod:         prx.MevSendBundlePublic,
-		EthCancelBundleMethod:       prx.EthCancelBundlePublic,
-		EthSendRawTransactionMethod: prx.EthSendRawTransactionPublic,
-		BidSubsidiseBlockMethod:     prx.BidSubsidiseBlockPublic,
+		EthSendBundleMethod:         prx.EthSendBundleSystem,
+		MevSendBundleMethod:         prx.MevSendBundleSystem,
+		EthCancelBundleMethod:       prx.EthCancelBundleSystem,
+		EthSendRawTransactionMethod: prx.EthSendRawTransactionSystem,
+		BidSubsidiseBlockMethod:     prx.BidSubsidiseBlockSystem,
 	},
 		rpcserver.JSONRPCHandlerOpts{
-			ServerName:                       "public_server",
+			ServerName:                       "system_server",
 			Log:                              prx.Log,
 			MaxRequestBodySizeBytes:          maxRequestBodySizeBytes,
 			VerifyRequestSignatureFromHeader: true,
@@ -62,21 +62,21 @@ func (prx *ReceiverProxy) PublicJSONRPCHandler(maxRequestBodySizeBytes int64) (*
 	return handler, err
 }
 
-func (prx *ReceiverProxy) LocalJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
+func (prx *ReceiverProxy) UserJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
 	landingPageHTML, err := prx.prepHTML()
 	if err != nil {
 		return nil, err
 	}
 
 	handler, err := rpcserver.NewJSONRPCHandler(rpcserver.Methods{
-		EthSendBundleMethod:         prx.EthSendBundleLocal,
-		MevSendBundleMethod:         prx.MevSendBundleLocal,
-		EthCancelBundleMethod:       prx.EthCancelBundleLocal,
-		EthSendRawTransactionMethod: prx.EthSendRawTransactionLocal,
-		BidSubsidiseBlockMethod:     prx.BidSubsidiseBlockLocal,
+		EthSendBundleMethod:         prx.EthSendBundleUser,
+		MevSendBundleMethod:         prx.MevSendBundleUser,
+		EthCancelBundleMethod:       prx.EthCancelBundleUser,
+		EthSendRawTransactionMethod: prx.EthSendRawTransactionUser,
+		BidSubsidiseBlockMethod:     prx.BidSubsidiseBlockUser,
 	},
 		rpcserver.JSONRPCHandlerOpts{
-			ServerName:                       "local_server",
+			ServerName:                       "user_server",
 			Log:                              prx.Log,
 			MaxRequestBodySizeBytes:          maxRequestBodySizeBytes,
 			VerifyRequestSignatureFromHeader: true,
@@ -87,14 +87,14 @@ func (prx *ReceiverProxy) LocalJSONRPCHandler(maxRequestBodySizeBytes int64) (*r
 	return handler, err
 }
 
-func (prx *ReceiverProxy) ValidateSigner(ctx context.Context, req *ParsedRequest, publicEndpoint bool) error {
+func (prx *ReceiverProxy) ValidateSigner(ctx context.Context, req *ParsedRequest, systemEndpoint bool) error {
 	req.signer = rpcserver.GetSigner(ctx)
-	if !publicEndpoint {
-		req.peerName = "local-request"
+	if !systemEndpoint {
+		req.peerName = "user-request"
 		return nil
 	}
 
-	prx.Log.Debug("Received signed request on a public endpoint", slog.Any("signer", req.signer))
+	prx.Log.Debug("Received signed request on a system endpoint", slog.Any("signer", req.signer))
 
 	if req.signer == prx.FlashbotsSignerAddress {
 		req.peerName = FlashbotsPeerName
@@ -119,24 +119,24 @@ func (prx *ReceiverProxy) ValidateSigner(ctx context.Context, req *ParsedRequest
 	return nil
 }
 
-func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs, publicEndpoint bool) error {
+func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs, systemEndpoint bool) error {
 	parsedRequest := ParsedRequest{
-		publicEndpoint: publicEndpoint,
+		systemEndpoint: systemEndpoint,
 		ethSendBundle:  &ethSendBundle,
 		method:         EthSendBundleMethod,
 	}
 
-	err := prx.ValidateSigner(ctx, &parsedRequest, publicEndpoint)
+	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
-	err = ValidateEthSendBundle(&ethSendBundle, publicEndpoint)
+	err = ValidateEthSendBundle(&ethSendBundle, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
-	if !publicEndpoint {
+	if !systemEndpoint {
 		ethSendBundle.SigningAddress = &parsedRequest.signer
 		// when receiving orderflow directly we default to v2 (currently latest version)
 		// for non-publicEndpoint we set v1 explicitly on sender_proxy, it might be a bit confusing
@@ -165,32 +165,32 @@ func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpcty
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
 
-func (prx *ReceiverProxy) EthSendBundlePublic(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs) error {
+func (prx *ReceiverProxy) EthSendBundleSystem(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs) error {
 	return prx.EthSendBundle(ctx, ethSendBundle, true)
 }
 
-func (prx *ReceiverProxy) EthSendBundleLocal(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs) error {
+func (prx *ReceiverProxy) EthSendBundleUser(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs) error {
 	return prx.EthSendBundle(ctx, ethSendBundle, false)
 }
 
-func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs, publicEndpoint bool) error {
+func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs, systemEndpoint bool) error {
 	parsedRequest := ParsedRequest{
-		publicEndpoint: publicEndpoint,
+		systemEndpoint: systemEndpoint,
 		mevSendBundle:  &mevSendBundle,
 		method:         MevSendBundleMethod,
 	}
 
-	err := prx.ValidateSigner(ctx, &parsedRequest, publicEndpoint)
+	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
-	err = ValidateMevSendBundle(&mevSendBundle, publicEndpoint)
+	err = ValidateMevSendBundle(&mevSendBundle, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
-	if !publicEndpoint {
+	if !systemEndpoint {
 		mevSendBundle.Metadata = &rpctypes.MevBundleMetadata{
 			Signer: &parsedRequest.signer,
 		}
@@ -227,52 +227,52 @@ func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpcty
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
 
-func (prx *ReceiverProxy) MevSendBundlePublic(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs) error {
+func (prx *ReceiverProxy) MevSendBundleSystem(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs) error {
 	return prx.MevSendBundle(ctx, mevSendBundle, true)
 }
 
-func (prx *ReceiverProxy) MevSendBundleLocal(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs) error {
+func (prx *ReceiverProxy) MevSendBundleUser(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs) error {
 	return prx.MevSendBundle(ctx, mevSendBundle, false)
 }
 
-func (prx *ReceiverProxy) EthCancelBundle(ctx context.Context, ethCancelBundle rpctypes.EthCancelBundleArgs, publicEndpoint bool) error {
+func (prx *ReceiverProxy) EthCancelBundle(ctx context.Context, ethCancelBundle rpctypes.EthCancelBundleArgs, systemEndpoint bool) error {
 	parsedRequest := ParsedRequest{
-		publicEndpoint:  publicEndpoint,
+		systemEndpoint:  systemEndpoint,
 		ethCancelBundle: &ethCancelBundle,
 		method:          EthCancelBundleMethod,
 	}
 
-	err := prx.ValidateSigner(ctx, &parsedRequest, publicEndpoint)
+	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
-	err = ValidateEthCancelBundle(&ethCancelBundle, publicEndpoint)
+	err = ValidateEthCancelBundle(&ethCancelBundle, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
-	if !publicEndpoint {
+	if !systemEndpoint {
 		ethCancelBundle.SigningAddress = &parsedRequest.signer
 	}
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
 
-func (prx *ReceiverProxy) EthCancelBundlePublic(ctx context.Context, ethCancelBundle rpctypes.EthCancelBundleArgs) error {
+func (prx *ReceiverProxy) EthCancelBundleSystem(ctx context.Context, ethCancelBundle rpctypes.EthCancelBundleArgs) error {
 	return prx.EthCancelBundle(ctx, ethCancelBundle, true)
 }
 
-func (prx *ReceiverProxy) EthCancelBundleLocal(ctx context.Context, ethCancelBundle rpctypes.EthCancelBundleArgs) error {
+func (prx *ReceiverProxy) EthCancelBundleUser(ctx context.Context, ethCancelBundle rpctypes.EthCancelBundleArgs) error {
 	return prx.EthCancelBundle(ctx, ethCancelBundle, false)
 }
 
-func (prx *ReceiverProxy) EthSendRawTransaction(ctx context.Context, ethSendRawTransaction rpctypes.EthSendRawTransactionArgs, publicEndpoint bool) error {
+func (prx *ReceiverProxy) EthSendRawTransaction(ctx context.Context, ethSendRawTransaction rpctypes.EthSendRawTransactionArgs, systemEndpoint bool) error {
 	parsedRequest := ParsedRequest{
-		publicEndpoint:        publicEndpoint,
+		systemEndpoint:        systemEndpoint,
 		ethSendRawTransaction: &ethSendRawTransaction,
 		method:                EthSendRawTransactionMethod,
 	}
-	err := prx.ValidateSigner(ctx, &parsedRequest, publicEndpoint)
+	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
 	if err != nil {
 		return err
 	}
@@ -283,26 +283,26 @@ func (prx *ReceiverProxy) EthSendRawTransaction(ctx context.Context, ethSendRawT
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
 
-func (prx *ReceiverProxy) EthSendRawTransactionPublic(ctx context.Context, ethSendRawTransaction rpctypes.EthSendRawTransactionArgs) error {
+func (prx *ReceiverProxy) EthSendRawTransactionSystem(ctx context.Context, ethSendRawTransaction rpctypes.EthSendRawTransactionArgs) error {
 	return prx.EthSendRawTransaction(ctx, ethSendRawTransaction, true)
 }
 
-func (prx *ReceiverProxy) EthSendRawTransactionLocal(ctx context.Context, ethSendRawTransaction rpctypes.EthSendRawTransactionArgs) error {
+func (prx *ReceiverProxy) EthSendRawTransactionUser(ctx context.Context, ethSendRawTransaction rpctypes.EthSendRawTransactionArgs) error {
 	return prx.EthSendRawTransaction(ctx, ethSendRawTransaction, false)
 }
 
-func (prx *ReceiverProxy) BidSubsidiseBlock(ctx context.Context, bidSubsidiseBlock rpctypes.BidSubsisideBlockArgs, publicEndpoint bool) error {
-	if !publicEndpoint {
+func (prx *ReceiverProxy) BidSubsidiseBlock(ctx context.Context, bidSubsidiseBlock rpctypes.BidSubsisideBlockArgs, systemEndpoint bool) error {
+	if !systemEndpoint {
 		return errSubsidyWrongEndpoint
 	}
 
 	parsedRequest := ParsedRequest{
-		publicEndpoint:    publicEndpoint,
+		systemEndpoint:    systemEndpoint,
 		bidSubsidiseBlock: &bidSubsidiseBlock,
 		method:            BidSubsidiseBlockMethod,
 	}
 
-	err := prx.ValidateSigner(ctx, &parsedRequest, publicEndpoint)
+	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
 	if err != nil {
 		return err
 	}
@@ -317,16 +317,16 @@ func (prx *ReceiverProxy) BidSubsidiseBlock(ctx context.Context, bidSubsidiseBlo
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
 
-func (prx *ReceiverProxy) BidSubsidiseBlockPublic(ctx context.Context, bidSubsidiseBlock rpctypes.BidSubsisideBlockArgs) error {
+func (prx *ReceiverProxy) BidSubsidiseBlockSystem(ctx context.Context, bidSubsidiseBlock rpctypes.BidSubsisideBlockArgs) error {
 	return prx.BidSubsidiseBlock(ctx, bidSubsidiseBlock, true)
 }
 
-func (prx *ReceiverProxy) BidSubsidiseBlockLocal(ctx context.Context, bidSubsidiseBlock rpctypes.BidSubsisideBlockArgs) error {
+func (prx *ReceiverProxy) BidSubsidiseBlockUser(ctx context.Context, bidSubsidiseBlock rpctypes.BidSubsisideBlockArgs) error {
 	return prx.BidSubsidiseBlock(ctx, bidSubsidiseBlock, false)
 }
 
 type ParsedRequest struct {
-	publicEndpoint        bool
+	systemEndpoint        bool
 	signer                common.Address
 	method                string
 	peerName              string
@@ -344,8 +344,8 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 	defer cancel()
 
 	parsedRequest.receivedAt = apiNow()
-	prx.Log.Debug("Received request", slog.Bool("isPublicEndpoint", parsedRequest.publicEndpoint), slog.String("method", parsedRequest.method))
-	if parsedRequest.publicEndpoint {
+	prx.Log.Debug("Received request", slog.Bool("isSystemEndpoint", parsedRequest.systemEndpoint), slog.String("method", parsedRequest.method))
+	if parsedRequest.systemEndpoint {
 		incAPIIncomingRequestsByPeer(parsedRequest.peerName)
 	}
 	if parsedRequest.requestArgUniqueKey != nil {
@@ -355,10 +355,10 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 		}
 		prx.requestUniqueKeysRLU.Add(*parsedRequest.requestArgUniqueKey, struct{}{})
 	}
-	if !parsedRequest.publicEndpoint {
-		err := prx.localAPIRateLimiter.Wait(ctx)
+	if !parsedRequest.systemEndpoint {
+		err := prx.userAPIRateLimiter.Wait(ctx)
 		if err != nil {
-			incAPILocalRateLimits()
+			incAPIUserRateLimits()
 			return errors.Join(errRateLimiting, err)
 		}
 	}
@@ -367,7 +367,7 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 		prx.Log.Error("Shared queue is stalling")
 	case prx.shareQueue <- &parsedRequest:
 	}
-	if !parsedRequest.publicEndpoint {
+	if !parsedRequest.systemEndpoint {
 		select {
 		case <-ctx.Done():
 			prx.Log.Error("Archive queue is stalling")

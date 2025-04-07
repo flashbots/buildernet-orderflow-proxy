@@ -112,7 +112,7 @@ func (aq *ArchiveQueue) Run() {
 // updateParsedRequest will return updated request that can be used to send data to orderflow archive
 // result can be nil without error meaning we don't need to archive that
 func (aq *ArchiveQueue) updateParsedRequest(input *ParsedRequest) (*ParsedRequest, error) {
-	if input.publicEndpoint {
+	if input.systemEndpoint {
 		return nil, errArchivePublicRequest
 	}
 	if input.bidSubsidiseBlock != nil {
@@ -135,7 +135,7 @@ func (aq *ArchiveQueue) updateParsedRequest(input *ParsedRequest) (*ParsedReques
 		}
 
 		input = &ParsedRequest{
-			publicEndpoint: input.publicEndpoint,
+			systemEndpoint: input.systemEndpoint,
 			signer:         input.signer,
 			method:         input.method,
 			receivedAt:     input.receivedAt,
