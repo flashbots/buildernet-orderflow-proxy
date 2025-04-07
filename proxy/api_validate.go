@@ -9,14 +9,32 @@ import (
 var (
 	errSigningAddress = errors.New("signing address field should not be set")
 
-	errDroppingTxHashed = errors.New("dropping tx hashes field should not be set")
-	errUUID             = errors.New("uuid field should not be set")
-	errRefundPercent    = errors.New("refund percent field should not be set")
-	errRefundRecipient  = errors.New("refund recipient field should not be set")
-	errRefundTxHashes   = errors.New("refund tx hashes field should not be set")
-
-	errLocalEndpointSbundleMetadata = errors.New("mev share bundle should not containt metadata when sent to local endpoint")
+	errDroppingTxHashed             = errors.New("dropping tx hashes field should not be set")
+	errRefundPercent                = errors.New("refund percent field should not be set")
+	errRefundRecipient              = errors.New("refund recipient field should not be set")
+	errRefundTxHashes               = errors.New("refund tx hashes field should not be set")
+	errReplacementSet               = errors.New("one of uuid or replacement_uuid fields should be empty")
+	errLocalEndpointSbundleMetadata = errors.New("mev share bundle should not contain metadata when sent to local endpoint")
+	errVersionNotSet                = errors.New("version field should be set")
+	errInvalidVersion               = errors.New("invalid version")
 )
+
+func EnsureReplacementUUID(args *rpctypes.EthSendBundleArgs) (*rpctypes.EthSendBundleArgs, error) {
+	if args.UUID == nil {
+		return args, nil
+	}
+	if args.ReplacementUUID != nil {
+		return nil, errReplacementSet
+	}
+
+	args.ReplacementUUID = args.UUID
+	args.UUID = nil
+	return args, nil
+}
+
+func IsVersionValid(version *string) bool {
+	return version == nil || *version == "" || *version == rpctypes.BundleVersionV1 || *version == rpctypes.BundleVersionV2
+}
 
 func ValidateEthSendBundle(args *rpctypes.EthSendBundleArgs, publicEndpoint bool) error {
 	if !publicEndpoint {
@@ -25,8 +43,25 @@ func ValidateEthSendBundle(args *rpctypes.EthSendBundleArgs, publicEndpoint bool
 		}
 	}
 
-	// do not allow for new bundle fields for public endpoint
+	valid := IsVersionValid(args.Version)
+	if !valid {
+		return errInvalidVersion
+	}
+
 	if publicEndpoint {
+		// For now public (system) endpoint should receive version field preset.
+		// For flashbots endpoint orderflowproxy-sender uses it, for direct orderflow
+		// first orderflow-proxy receiver sets this field
+		// We might later change it once we successfully finish transition to v2 bundle support
+		if args.Version == nil || *args.Version == "" {
+			return errVersionNotSet
+		}
+		version := *args.Version
+		if version == rpctypes.BundleVersionV2 {
+			return nil
+		}
+
+		// check that v1 bundle dosn't have unsupported fields
 		if len(args.DroppingTxHashes) > 0 {
 			return errDroppingTxHashed
 		}
@@ -40,10 +75,6 @@ func ValidateEthSendBundle(args *rpctypes.EthSendBundleArgs, publicEndpoint bool
 		if len(args.RefundTxHashes) > 0 {
 			return errRefundTxHashes
 		}
-	}
-
-	if args.UUID != nil {
-		return errUUID
 	}
 
 	return nil

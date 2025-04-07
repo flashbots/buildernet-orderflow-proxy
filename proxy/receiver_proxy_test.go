@@ -562,3 +562,88 @@ func TestBuilderNetRootCall(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(respBody), "-----BEGIN CERTIFICATE-----")
 }
+
+func TestValidateLocalBundles(t *testing.T) {
+	signer, err := signature.NewSignerFromHexPrivateKey("0xd63b3c447fdea415a05e4c0b859474d14105a88178efdf350bc9f7b05be3cc58")
+	require.NoError(t, err)
+	client, err := RPCClientWithCertAndSigner(proxies[0].localServerEndpoint, proxies[0].proxy.PublicCertPEM, signer, 1)
+	require.NoError(t, err)
+
+	pubClient, err := RPCClientWithCertAndSigner(proxies[0].publicServerEndpoint, proxies[0].proxy.PublicCertPEM, flashbotsSigner, 1)
+	require.NoError(t, err)
+
+	// we start with no peers
+	builderHubPeers = nil
+	err = proxies[0].proxy.RegisterSecrets(context.Background())
+	require.NoError(t, err)
+	proxiesUpdatePeers(t)
+
+	apiNow = func() time.Time {
+		return time.Unix(1730000000, 0)
+	}
+	defer func() {
+		apiNow = time.Now
+	}()
+
+	blockNumber := hexutil.Uint64(123)
+	invalidVersion := "v14"
+	resp, err := client.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
+		BlockNumber: &blockNumber,
+		Version:     &invalidVersion,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "invalid version", resp.Error.Message)
+	expectNoRequest(t, proxies[0].localBuilderRequests)
+
+	blockNumber = hexutil.Uint64(124)
+	uid := "52840671-89dc-484f-80f6-401753513ba9"
+	resp, err = client.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
+		BlockNumber: &blockNumber,
+		UUID:        &uid,
+	})
+	require.NoError(t, err)
+	require.Nil(t, resp.Error)
+	rd := expectRequest(t, proxies[0].localBuilderRequests)
+	require.JSONEq(
+		t,
+		`{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x7c","replacementUuid":"52840671-89dc-484f-80f6-401753513ba9","version":"v2","replacementNonce":1730000000000000,"signingAddress":"0x9349365494be4f6205e5d44bdc7ec7dcd134becf"}],"id":0,"jsonrpc":"2.0"}`,
+		rd.body,
+	)
+
+	blockNumber = hexutil.Uint64(123)
+	invalidVersion = "v14"
+	resp, err = pubClient.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
+		BlockNumber: &blockNumber,
+		Version:     &invalidVersion,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "invalid version", resp.Error.Message)
+	expectNoRequest(t, proxies[0].localBuilderRequests)
+
+	blockNumber = hexutil.Uint64(123)
+	resp, err = pubClient.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
+		BlockNumber: &blockNumber,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "version field should be set", resp.Error.Message)
+	expectNoRequest(t, proxies[0].localBuilderRequests)
+
+	blockNumber = hexutil.Uint64(125)
+	uid = "4749af2a-1b99-45f2-a9bf-827cc0840964"
+	version := rpctypes.BundleVersionV1
+	resp, err = pubClient.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
+		BlockNumber: &blockNumber,
+		Version:     &version,
+		UUID:        &uid,
+	})
+	require.NoError(t, err)
+	require.Nil(t, resp.Error)
+	rd = expectRequest(t, proxies[0].localBuilderRequests)
+	require.JSONEq(
+		t,
+		`{"method":"eth_sendBundle","params":[{"txs":null,"blockNumber":"0x7d","replacementUuid":"4749af2a-1b99-45f2-a9bf-827cc0840964","version":"v1"}],"id":0,"jsonrpc":"2.0"}`,
+		rd.body,
+	)
+
+	proxiesFlushQueue()
+}

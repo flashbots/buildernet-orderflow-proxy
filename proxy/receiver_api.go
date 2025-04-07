@@ -131,11 +131,18 @@ func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpcty
 		return err
 	}
 
+	_, err = EnsureReplacementUUID(&ethSendBundle)
+	if err != nil {
+		return err
+	}
+
 	err = ValidateEthSendBundle(&ethSendBundle, systemEndpoint)
 	if err != nil {
 		return err
 	}
 
+	// For direct orderflow we extract signing address from header
+	// We also default to v2 bundle version if it's not set
 	if !systemEndpoint {
 		ethSendBundle.SigningAddress = &parsedRequest.signer
 		// when receiving orderflow directly we default to v2 (currently latest version)
