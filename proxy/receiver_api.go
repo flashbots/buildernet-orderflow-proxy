@@ -120,6 +120,7 @@ func (prx *ReceiverProxy) ValidateSigner(ctx context.Context, req *ParsedRequest
 }
 
 func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpctypes.EthSendBundleArgs, systemEndpoint bool) error {
+	startAt := time.Now()
 	parsedRequest := ParsedRequest{
 		systemEndpoint: systemEndpoint,
 		ethSendBundle:  &ethSendBundle,
@@ -140,6 +141,9 @@ func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpcty
 	if err != nil {
 		return err
 	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "validation")
+	startAt = time.Now()
 
 	// For direct orderflow we extract signing address from header
 	// We also default to v2 bundle version if it's not set
@@ -169,6 +173,8 @@ func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpcty
 	uniqueKey := ethSendBundle.UniqueKey()
 	parsedRequest.requestArgUniqueKey = &uniqueKey
 
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "add_fields")
+
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
 
@@ -181,6 +187,7 @@ func (prx *ReceiverProxy) EthSendBundleUser(ctx context.Context, ethSendBundle r
 }
 
 func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpctypes.MevSendBundleArgs, systemEndpoint bool) error {
+	startAt := time.Now()
 	parsedRequest := ParsedRequest{
 		systemEndpoint: systemEndpoint,
 		mevSendBundle:  &mevSendBundle,
@@ -196,6 +203,9 @@ func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpcty
 	if err != nil {
 		return err
 	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "validation")
+	startAt = time.Now()
 
 	if !systemEndpoint {
 		mevSendBundle.Metadata = &rpctypes.MevBundleMetadata{
@@ -230,6 +240,8 @@ func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpcty
 	// @note: unique key filterst same requests and it can interact with cancellations (you can't cancel multiple times per block)
 	uniqueKey := mevSendBundle.UniqueKey()
 	parsedRequest.requestArgUniqueKey = &uniqueKey
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "add_fields")
 
 	return prx.HandleParsedRequest(ctx, parsedRequest)
 }
@@ -347,6 +359,7 @@ type ParsedRequest struct {
 }
 
 func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest ParsedRequest) error {
+	startAt := time.Now()
 	ctx, cancel := context.WithTimeout(ctx, handleParsedRequestTimeout)
 	defer cancel()
 
@@ -362,6 +375,10 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 		}
 		prx.requestUniqueKeysRLU.Add(*parsedRequest.requestArgUniqueKey, struct{}{})
 	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "validation")
+	startAt = time.Now()
+
 	if !parsedRequest.systemEndpoint {
 		err := prx.userAPIRateLimiter.Wait(ctx)
 		if err != nil {
@@ -369,11 +386,19 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 			return errors.Join(errRateLimiting, err)
 		}
 	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "rate_limiting")
+	startAt = time.Now()
+
 	select {
 	case <-ctx.Done():
 		prx.Log.Error("Shared queue is stalling")
 	case prx.shareQueue <- &parsedRequest:
 	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "share_queue")
+	startAt = time.Now()
+
 	if !parsedRequest.systemEndpoint {
 		select {
 		case <-ctx.Done():
@@ -381,6 +406,8 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 		case prx.archiveQueue <- &parsedRequest:
 		}
 	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "archive_queue")
 	return nil
 }
 

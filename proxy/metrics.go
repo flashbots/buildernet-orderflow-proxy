@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -28,6 +29,8 @@ const (
 	shareQueuePeerStallingErrorsLabel = `orderflow_proxy_share_queue_peer_stalling_errors{peer="%s"}`
 	shareQueuePeerRPCErrorsLabel      = `orderflow_proxy_share_queue_peer_rpc_errors{peer="%s"}`
 	shareQueuePeerRPCDurationLabel    = `orderflow_proxy_share_queue_peer_rpc_duration_milliseconds{peer="%s"}`
+
+	requestDurationLabel = `orderflow_proxy_api_request_processing_duration_milliseconds{method="%s",server_name="%s",step="%s"}`
 )
 
 func incAPIIncomingRequestsByPeer(peer string) {
@@ -57,4 +60,10 @@ func incShareQueuePeerRPCErrors(peer string) {
 func timeShareQueuePeerRPCDuration(peer string, duration int64) {
 	l := fmt.Sprintf(shareQueuePeerRPCDurationLabel, peer)
 	metrics.GetOrCreateSummary(l).Update(float64(duration))
+}
+
+func incRequestDurationStep(duration time.Duration, method, serverName, step string) {
+	millis := float64(duration.Microseconds()) / 1000.0
+	l := fmt.Sprintf(requestDurationLabel, method, serverName, step)
+	metrics.GetOrCreateSummary(l).Update(millis)
 }
