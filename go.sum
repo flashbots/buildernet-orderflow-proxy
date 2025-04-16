@@ -34,6 +34,8 @@ github.com/ethereum/go-verkle v0.2.2 h1:I2W0WjnrFUIzzVPwm8ykY+7pL2d4VhlsePn4j7cn
 github.com/ethereum/go-verkle v0.2.2/go.mod h1:M3b90YRnzqKyyzBEWJGqj8Qff4IDeXnzFw0P9bFw3uk=
 github.com/flashbots/go-utils v0.10.0 h1:75XWewRO5GIhdLn8+vqdzzuoqJh+j8wN54A++Id7W0Y=
 github.com/flashbots/go-utils v0.10.0/go.mod h1:i4xxEB6sHDFfNWEIfh+rP6nx3LxynEn8AOZa05EYgwA=
+github.com/flashbots/go-utils v0.10.1-0.20250416132112-39233b64a8c5 h1:oEfjmk2NQ/FtX+1h1Rx4PMpJtbNAa6T/l6otbUmzZp8=
+github.com/flashbots/go-utils v0.10.1-0.20250416132112-39233b64a8c5/go.mod h1:i4xxEB6sHDFfNWEIfh+rP6nx3LxynEn8AOZa05EYgwA=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
 github.com/gofrs/flock v0.8.1 h1:+gYjHKf32LDeiEEFhQaotPbLuUXjY5ZqxKgXy7n59aw=
