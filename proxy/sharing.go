@@ -187,7 +187,7 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 		resp, err := peer.client.Call(ctx, method, data)
 		cancel()
 		timeShareQueuePeerRPCDuration(peer.name, time.Since(start).Milliseconds())
-
+		timeShareQueuePeerE2EDuration(peer.name, time.Since(req.receivedAt), method, req.systemEndpoint)
 		logSendErrorLevel := slog.LevelDebug
 		if peer.name == "local-builder" {
 			logSendErrorLevel = slog.LevelWarn

@@ -29,6 +29,7 @@ const (
 	shareQueuePeerStallingErrorsLabel = `orderflow_proxy_share_queue_peer_stalling_errors{peer="%s"}`
 	shareQueuePeerRPCErrorsLabel      = `orderflow_proxy_share_queue_peer_rpc_errors{peer="%s"}`
 	shareQueuePeerRPCDurationLabel    = `orderflow_proxy_share_queue_peer_rpc_duration_milliseconds{peer="%s"}`
+	shareQueuePeerE2EDurationLabel    = `orderflow_proxy_share_queue_peer_e2e_duration_milliseconds{peer="%s",method="%s",system_endpoint="%t"}`
 
 	requestDurationLabel = `orderflow_proxy_api_request_processing_duration_milliseconds{method="%s",server_name="%s",step="%s"}`
 )
@@ -60,6 +61,12 @@ func incShareQueuePeerRPCErrors(peer string) {
 func timeShareQueuePeerRPCDuration(peer string, duration int64) {
 	l := fmt.Sprintf(shareQueuePeerRPCDurationLabel, peer)
 	metrics.GetOrCreateSummary(l).Update(float64(duration))
+}
+
+func timeShareQueuePeerE2EDuration(peer string, duration time.Duration, method string, systemEndpoint bool) {
+	millis := float64(duration.Microseconds()) / 1000.0
+	l := fmt.Sprintf(shareQueuePeerE2EDurationLabel, peer, method, systemEndpoint)
+	metrics.GetOrCreateSummary(l).Update(float64(millis))
 }
 
 func incRequestDurationStep(duration time.Duration, method, serverName, step string) {
