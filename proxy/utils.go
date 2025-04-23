@@ -50,6 +50,7 @@ func RPCClientWithCertAndSigner(endpoint string, certPEM []byte, signer *signatu
 	}
 	transport.MaxIdleConns = maxOpenConnections
 	transport.MaxIdleConnsPerHost = maxOpenConnections
+	transport.WriteBufferSize = 64 << 10
 
 	client := rpcclient.NewClientWithOpts(endpoint, &rpcclient.RPCClientOpts{
 		HTTPClient: &http.Client{
