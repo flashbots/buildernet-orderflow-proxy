@@ -74,11 +74,11 @@ func (setup *OrderflowProxyTestSetup) Close() {
 	setup.proxy.Stop()
 }
 
-func StartTestOrderflowProxy(name string) (*OrderflowProxyTestSetup, error) {
+func StartTestOrderflowProxy(name, certPath, certKeyPath string) (*OrderflowProxyTestSetup, error) {
 	localBuilderRequests := make(chan *RequestData, 1)
 	localBuilderServer := ServeHTTPRequestToChan(localBuilderRequests)
 
-	proxy := createProxy(localBuilderServer.URL, name)
+	proxy := createProxy(localBuilderServer.URL, name, certPath, certKeyPath)
 	publicProxyServer := &http.Server{ //nolint:gosec
 		Handler:   proxy.SystemHandler,
 		TLSConfig: proxy.TLSConfig(),
@@ -169,7 +169,7 @@ func TestMain(m *testing.M) {
 	defer archiveServer.Close()
 
 	for i := range 3 {
-		proxy, err := StartTestOrderflowProxy(fmt.Sprintf("proxy:%d", i))
+		proxy, err := StartTestOrderflowProxy(fmt.Sprintf("proxy:%d", i), "/tmp/orderflow-proxy-test.cert", "/tmp/orderflow-proxy-test.key")
 		proxies = append(proxies, proxy)
 		if err != nil {
 			panic(err)
@@ -184,7 +184,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func createProxy(localBuilder, name string) *ReceiverProxy {
+func createProxy(localBuilder, name, certPath, certKeyPath string) *ReceiverProxy {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	proxy, err := NewReceiverProxy(ReceiverProxyConfig{
 		ReceiverProxyConstantConfig: ReceiverProxyConstantConfig{
@@ -192,8 +192,11 @@ func createProxy(localBuilder, name string) *ReceiverProxy {
 			Name:                   name,
 			FlashbotsSignerAddress: flashbotsSigner.Address(),
 		},
-		CertValidDuration:        time.Hour * 24,
-		CertHosts:                []string{"localhost", "127.0.0.1"},
+		CertValidDuration: time.Hour * 24,
+		CertHosts:         []string{"localhost", "127.0.0.1"},
+		CertPath:          certPath,
+		CertKeyPath:       certKeyPath,
+
 		BuilderConfigHubEndpoint: builderHub.URL,
 		ArchiveEndpoint:          archiveServer.URL,
 		LocalBuilderEndpoint:     localBuilder,
@@ -551,7 +554,7 @@ func TestProxyBidSubsidiseBlockCall(t *testing.T) {
 }
 
 func TestBuilderNetRootCall(t *testing.T) {
-	proxy, err := StartTestOrderflowProxy("1")
+	proxy, err := StartTestOrderflowProxy("1", "/tmp/orderflow-proxy-test.cert", "/tmp/orderflow-proxy-test.key")
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

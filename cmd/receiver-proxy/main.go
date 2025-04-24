@@ -23,6 +23,9 @@ const (
 	flagSystemListenAddr = "system-listen-addr"
 	flagCertListenAddr   = "cert-listen-addr"
 	flagMaxUserRPS       = "max-user-requests-per-second"
+
+	flagCertPath    = "cert-path"
+	flagCertKeyPath = "cert-key-path"
 )
 
 var flags = []cli.Flag{
@@ -110,6 +113,16 @@ var flags = []cli.Flag{
 		Value:   cli.NewStringSlice("127.0.0.1", "localhost"),
 		Usage:   "generated certificate hosts",
 		EnvVars: []string{"CERT_HOSTS"},
+	},
+	&cli.DurationFlag{
+		Name:    flagCertPath,
+		Usage:   "path where to store the generated certificate",
+		EnvVars: []string{"CERT_PATH"},
+	},
+	&cli.StringFlag{
+		Name:    flagCertKeyPath,
+		Usage:   "path where to store the generated certificate key",
+		EnvVars: []string{"CERT_KEY_PATH"},
 	},
 
 	// Logging, metrics and debug
@@ -216,8 +229,7 @@ func runMain(cCtx *cli.Context) error {
 
 	builderEndpoint := cCtx.String("builder-endpoint")
 	rpcEndpoint := cCtx.String("rpc-endpoint")
-	certDuration := cCtx.Duration("cert-duration")
-	certHosts := cCtx.StringSlice("cert-hosts")
+
 	builderConfigHubEndpoint := cCtx.String("builder-confighub-endpoint")
 	archiveEndpoint := cCtx.String("orderflow-archive-endpoint")
 	flashbotsSignerStr := cCtx.String("flashbots-orderflow-signer-address")
@@ -227,10 +239,21 @@ func runMain(cCtx *cli.Context) error {
 
 	maxUserRPS := cCtx.Int(flagMaxUserRPS)
 
+	certDuration := cCtx.Duration("cert-duration")
+	certHosts := cCtx.StringSlice("cert-hosts")
+	certPath := cCtx.String(flagCertPath)
+	certKeyPath := cCtx.String(flagCertKeyPath)
+	if certPath == "" || certKeyPath == "" {
+		log.Error("cert-path and cert-key-path must be set")
+		return nil
+	}
+
 	proxyConfig := &proxy.ReceiverProxyConfig{
 		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
 		CertValidDuration:           certDuration,
 		CertHosts:                   certHosts,
+		CertPath:                    certPath,
+		CertKeyPath:                 certKeyPath,
 		BuilderConfigHubEndpoint:    builderConfigHubEndpoint,
 		ArchiveEndpoint:             archiveEndpoint,
 		ArchiveConnections:          connectionsPerPeer,

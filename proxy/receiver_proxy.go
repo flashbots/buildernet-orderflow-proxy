@@ -76,8 +76,11 @@ type ReceiverProxyConstantConfig struct {
 
 type ReceiverProxyConfig struct {
 	ReceiverProxyConstantConfig
+
 	CertValidDuration time.Duration
 	CertHosts         []string
+	CertPath          string
+	CertKeyPath       string
 
 	BuilderConfigHubEndpoint string
 	ArchiveEndpoint          string
@@ -99,7 +102,7 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		return nil, err
 	}
 
-	cert, key, err := utils_tls.GenerateTLS(config.CertValidDuration, config.CertHosts)
+	cert, key, err := utils_tls.GetOrGenerateTLS(config.CertPath, config.CertKeyPath, config.CertValidDuration, config.CertHosts)
 	if err != nil {
 		return nil, err
 	}
