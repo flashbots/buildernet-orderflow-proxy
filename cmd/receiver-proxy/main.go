@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/pprof"
@@ -244,8 +245,7 @@ func runMain(cCtx *cli.Context) error {
 	certPath := cCtx.String(flagCertPath)
 	certKeyPath := cCtx.String(flagCertKeyPath)
 	if certPath == "" || certKeyPath == "" {
-		log.Error("cert-path and cert-key-path must be set")
-		return nil
+		return errors.New("cert-path and cert-key-path must be set")
 	}
 
 	proxyConfig := &proxy.ReceiverProxyConfig{
