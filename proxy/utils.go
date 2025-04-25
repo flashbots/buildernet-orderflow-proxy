@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/flashbots/go-utils/cli"
 	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/flashbots/go-utils/signature"
 )
 
 var DefaultOrderflowProxyPublicPort = "5544"
+var DefaultHTTPCLientWriteBuffer = cli.GetEnvInt("HTTP_CLIENT_WRITE_BUFFER", 64<<10) // 64 KiB
 
 var errCertificate = errors.New("failed to add certificate to pool")
 
@@ -50,7 +52,7 @@ func RPCClientWithCertAndSigner(endpoint string, certPEM []byte, signer *signatu
 	}
 	transport.MaxIdleConns = maxOpenConnections
 	transport.MaxIdleConnsPerHost = maxOpenConnections
-	transport.WriteBufferSize = 64 << 10
+	transport.WriteBufferSize = DefaultHTTPCLientWriteBuffer
 
 	client := rpcclient.NewClientWithOpts(endpoint, &rpcclient.RPCClientOpts{
 		HTTPClient: &http.Client{

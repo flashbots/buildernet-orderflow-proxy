@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"github.com/flashbots/go-utils/cli"
+	"golang.org/x/net/http2"
 )
 
 var (
-	HTTPDefaultReadTimeout  = time.Duration(cli.GetEnvInt("HTTP_READ_TIMEOUT_SEC", 60)) * time.Second
-	HTTPDefaultWriteTimeout = time.Duration(cli.GetEnvInt("HTTP_WRITE_TIMEOUT_SEC", 30)) * time.Second
-	HTTPDefaultIdleTimeout  = time.Duration(cli.GetEnvInt("HTTP_IDLE_TIMEOUT_SEC", 3600)) * time.Second
+	HTTPDefaultReadTimeout             = time.Duration(cli.GetEnvInt("HTTP_READ_TIMEOUT_SEC", 60)) * time.Second
+	HTTPDefaultWriteTimeout            = time.Duration(cli.GetEnvInt("HTTP_WRITE_TIMEOUT_SEC", 30)) * time.Second
+	HTTPDefaultIdleTimeout             = time.Duration(cli.GetEnvInt("HTTP_IDLE_TIMEOUT_SEC", 3600)) * time.Second
+	HTTP2DefaultMaxUploadPerConnection = cli.GetEnvInt("HTTP2_MAX_UPLOAD_PER_CONN", 32<<20)  // 32MiB
+	HTTP2DefaultMaxUploadPerStream     = cli.GetEnvInt("HTTP2_MAX_UPLOAD_PER_STREAM", 8<<20) // 8MiB
 )
 
 type ReceiverProxyServers struct {
@@ -31,6 +34,17 @@ func StartReceiverServers(proxy *ReceiverProxy, userListenAddress, systemListenA
 		WriteTimeout: HTTPDefaultWriteTimeout,
 		IdleTimeout:  HTTPDefaultIdleTimeout,
 	}
+	userH2 := http2.Server{
+		MaxUploadBufferPerConnection: int32(HTTP2DefaultMaxUploadPerConnection),
+		MaxUploadBufferPerStream:     int32(HTTP2DefaultMaxUploadPerStream),
+	}
+
+	//NOTE: as per https://github.com/golang/go/issues/67813 we still have to configure it like this
+	//NOTE: this should be only meaningful for systemServer as these changes are to improve latencies whereas RTT is around 50-100ms
+	err := http2.ConfigureServer(userServer, &userH2)
+	if err != nil {
+		return nil, err
+	}
 	systemServer := &http.Server{
 		Addr:         systemListenAddress,
 		Handler:      proxy.SystemHandler,
@@ -39,6 +53,16 @@ func StartReceiverServers(proxy *ReceiverProxy, userListenAddress, systemListenA
 		WriteTimeout: HTTPDefaultWriteTimeout,
 		IdleTimeout:  HTTPDefaultIdleTimeout,
 	}
+	systemH2 := http2.Server{
+		MaxUploadBufferPerConnection: int32(HTTP2DefaultMaxUploadPerConnection),
+		MaxUploadBufferPerStream:     int32(HTTP2DefaultMaxUploadPerStream),
+	}
+
+	err = http2.ConfigureServer(systemServer, &systemH2)
+	if err != nil {
+		return nil, err
+	}
+
 	certServer := &http.Server{
 		Addr:         certListenAddress,
 		Handler:      proxy.CertHandler,
