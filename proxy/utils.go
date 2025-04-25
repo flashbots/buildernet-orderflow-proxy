@@ -17,8 +17,10 @@ import (
 	"github.com/flashbots/go-utils/signature"
 )
 
-var DefaultOrderflowProxyPublicPort = "5544"
-var DefaultHTTPCLientWriteBuffer = cli.GetEnvInt("HTTP_CLIENT_WRITE_BUFFER", 64<<10) // 64 KiB
+var (
+	DefaultOrderflowProxyPublicPort = "5544"
+	DefaultHTTPCLientWriteBuffer    = cli.GetEnvInt("HTTP_CLIENT_WRITE_BUFFER", 64<<10) // 64 KiB
+)
 
 var errCertificate = errors.New("failed to add certificate to pool")
 
