@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -117,6 +118,12 @@ func StartTestOrderflowProxy(name, certPath, certKeyPath string) (*OrderflowProx
 	}, nil
 }
 
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	signer, err := signature.NewRandomSigner()
 	if err != nil {
@@ -168,16 +175,26 @@ func TestMain(m *testing.M) {
 	archiveServer = ServeHTTPRequestToChan(archiveServerRequests)
 	defer archiveServer.Close()
 
+	tempDirs := make([]string, 0)
 	for i := range 3 {
-		proxy, err := StartTestOrderflowProxy(fmt.Sprintf("proxy:%d", i), "/tmp/orderflow-proxy-test.cert", "/tmp/orderflow-proxy-test.key")
+		tempDir, err := os.MkdirTemp("", "orderflow-proxy-test")
+		check(err)
+		tempDirs = append(tempDirs, tempDir)
+		certPath := path.Join(tempDir, "cert")
+		keyPath := path.Join(tempDir, "key")
+
+		proxy, err := StartTestOrderflowProxy(fmt.Sprintf("proxy:%d", i), certPath, keyPath)
 		proxies = append(proxies, proxy)
-		if err != nil {
-			panic(err)
-		}
+		check(err)
 	}
+
 	defer func() {
 		for _, prx := range proxies {
 			prx.Close()
+		}
+
+		for _, dir := range tempDirs {
+			_ = os.RemoveAll(dir)
 		}
 	}()
 
@@ -554,7 +571,10 @@ func TestProxyBidSubsidiseBlockCall(t *testing.T) {
 }
 
 func TestBuilderNetRootCall(t *testing.T) {
-	proxy, err := StartTestOrderflowProxy("1", "/tmp/orderflow-proxy-test.cert", "/tmp/orderflow-proxy-test.key")
+	tempDir := t.TempDir()
+	certPath := path.Join(tempDir, "cert")
+	keyPath := path.Join(tempDir, "key")
+	proxy, err := StartTestOrderflowProxy("1", certPath, keyPath)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
