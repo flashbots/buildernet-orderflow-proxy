@@ -115,7 +115,7 @@ var flags = []cli.Flag{
 		Usage:   "generated certificate hosts",
 		EnvVars: []string{"CERT_HOSTS"},
 	},
-	&cli.DurationFlag{
+	&cli.StringFlag{
 		Name:    flagCertPath,
 		Usage:   "path where to store the generated certificate",
 		EnvVars: []string{"CERT_PATH"},
