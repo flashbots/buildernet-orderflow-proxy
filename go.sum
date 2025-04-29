@@ -38,6 +38,8 @@ github.com/flashbots/go-utils v0.10.1-0.20250424105414-d6d0a6a11ce5 h1:F6pO8NC+J
 github.com/flashbots/go-utils v0.10.1-0.20250424105414-d6d0a6a11ce5/go.mod h1:i4xxEB6sHDFfNWEIfh+rP6nx3LxynEn8AOZa05EYgwA=
 github.com/flashbots/go-utils v0.11.0 h1:MuI9OOl40MukSL2ucKKQG1sxxl5Cqjla41TRubGNu0w=
 github.com/flashbots/go-utils v0.11.0/go.mod h1:i4xxEB6sHDFfNWEIfh+rP6nx3LxynEn8AOZa05EYgwA=
+github.com/flashbots/go-utils v0.12.0 h1:0NFWvmfjDAmDNhJGnk7C7K8ZhfeqKWxvsE0AYlZRX5A=
+github.com/flashbots/go-utils v0.12.0/go.mod h1:i4xxEB6sHDFfNWEIfh+rP6nx3LxynEn8AOZa05EYgwA=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
 github.com/gofrs/flock v0.8.1 h1:+gYjHKf32LDeiEEFhQaotPbLuUXjY5ZqxKgXy7n59aw=
