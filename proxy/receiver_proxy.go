@@ -94,6 +94,7 @@ type ReceiverProxyConfig struct {
 
 	ConnectionsPerPeer int
 	MaxUserRPS         int
+	ArchiveWorkerCount int
 }
 
 func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
@@ -185,6 +186,7 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		flushQueue:        archiveFlushCh,
 		archiveClient:     archiveClient,
 		blockNumberSource: NewBlockNumberSource(config.EthRPC),
+		workerCount:       config.ArchiveWorkerCount,
 	}
 	go archiveQueue.Run()
 

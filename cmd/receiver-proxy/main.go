@@ -75,6 +75,12 @@ var flags = []cli.Flag{
 		Usage:   "address of the orderflow archive endpoint (block-processor)",
 		EnvVars: []string{"ORDERFLOW_ARCHIVE_ENDPOINT"},
 	},
+	&cli.IntFlag{
+		Name:    "archive-worker-count",
+		Value:   5,
+		Usage:   "number of parallel workers sending orderflow to archive",
+		EnvVars: []string{"ARCHIVE_WORKER_COUNT"},
+	},
 
 	// Various configs
 	&cli.StringFlag{
@@ -237,7 +243,7 @@ func runMain(cCtx *cli.Context) error {
 	flashbotsSignerAddress := eth.HexToAddress(flashbotsSignerStr)
 	maxRequestBodySizeBytes := cCtx.Int64("max-request-body-size-bytes")
 	connectionsPerPeer := cCtx.Int("connections-per-peer")
-
+	archiveWorkerCount := cCtx.Int("archive-worker-count")
 	maxUserRPS := cCtx.Int(flagMaxUserRPS)
 
 	certDuration := cCtx.Duration("cert-duration")
@@ -262,6 +268,7 @@ func runMain(cCtx *cli.Context) error {
 		MaxRequestBodySizeBytes:     maxRequestBodySizeBytes,
 		ConnectionsPerPeer:          connectionsPerPeer,
 		MaxUserRPS:                  maxUserRPS,
+		ArchiveWorkerCount:          archiveWorkerCount,
 	}
 
 	instance, err := proxy.NewReceiverProxy(*proxyConfig)

@@ -26,7 +26,7 @@ var (
 	ArchiveRequestTimeout = time.Second * 15
 	ArchiveRetryMaxTime   = time.Second * 120
 
-	ArchiveWorkerQueueSize = 10000
+	ArchiveWorkerQueueSize = 20000
 )
 
 type ArchiveQueue struct {
