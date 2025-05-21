@@ -15,12 +15,15 @@ import (
 	"github.com/flashbots/go-utils/cli"
 	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/flashbots/go-utils/signature"
+	"golang.org/x/net/http2"
 )
 
 var (
 	DefaultOrderflowProxyPublicPort = "5544"
 	DefaultHTTPCLientWriteBuffer    = cli.GetEnvInt("HTTP_CLIENT_WRITE_BUFFER", 64<<10) // 64 KiB
 )
+
+const DefaultLocalhostMaxIdleConn = 1000
 
 var errCertificate = errors.New("failed to add certificate to pool")
 
@@ -44,6 +47,27 @@ func HTTPClientWithMaxConnections(maxOpenConnections int) *http.Client {
 			MaxIdleConnsPerHost: maxOpenConnections,
 		},
 	}
+}
+
+func HTTPClientLocalhost(maxOpenConnections int) *http.Client {
+	localTransport := &http.Transport{
+		MaxIdleConnsPerHost: maxOpenConnections,
+		MaxIdleConns:        maxOpenConnections,
+		DisableCompression:  true,
+		IdleConnTimeout:     time.Minute * 2,
+		DialContext: (&net.Dialer{
+			KeepAlive: 30 * time.Second, // detect half-open sockets soonish
+			LocalAddr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)},
+			Timeout:   1 * time.Second, // fail fast
+		}).DialContext,
+		Proxy: nil,
+	}
+	_ = http2.ConfigureTransport(localTransport)
+	localCl := http.Client{
+		Transport: localTransport,
+		Timeout:   10 * time.Second,
+	}
+	return &localCl
 }
 
 //nolint:ireturn

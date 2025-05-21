@@ -113,7 +113,11 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		return nil, err
 	}
 
-	localBuilder := rpcclient.NewClient(config.LocalBuilderEndpoint)
+	localCl := HTTPClientLocalhost(DefaultLocalhostMaxIdleConn)
+
+	localBuilder := rpcclient.NewClientWithOpts(config.LocalBuilderEndpoint, &rpcclient.RPCClientOpts{
+		HTTPClient: localCl,
+	})
 
 	limit := rate.Limit(config.MaxUserRPS)
 	if config.MaxUserRPS == 0 {
