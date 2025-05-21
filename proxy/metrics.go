@@ -28,8 +28,9 @@ const (
 
 	shareQueuePeerStallingErrorsLabel = `orderflow_proxy_share_queue_peer_stalling_errors{peer="%s"}`
 	shareQueuePeerRPCErrorsLabel      = `orderflow_proxy_share_queue_peer_rpc_errors{peer="%s"}`
-	shareQueuePeerRPCDurationLabel    = `orderflow_proxy_share_queue_peer_rpc_duration_milliseconds{peer="%s"}`
-	shareQueuePeerE2EDurationLabel    = `orderflow_proxy_share_queue_peer_e2e_duration_milliseconds{peer="%s",method="%s",system_endpoint="%t"}`
+	shareQueuePeerRPCDurationLabel    = `orderflow_proxy_share_queue_peer_rpc_duration_milliseconds{peer="%s",is_big="%t"}`
+	shareQueuePeerE2EDurationLabel    = `orderflow_proxy_share_queue_peer_e2e_duration_milliseconds{peer="%s",method="%s",system_endpoint="%t",is_big="%t"}`
+	shareQueuePeerQueueDurationLabel  = `orderflow_proxy_share_queue_peer_queue_duration_milliseconds{peer="%s",method="%s",system_endpoint="%t",is_big="%t"}`
 
 	requestDurationLabel = `orderflow_proxy_api_request_processing_duration_milliseconds{method="%s",server_name="%s",step="%s"}`
 )
@@ -58,14 +59,20 @@ func incShareQueuePeerRPCErrors(peer string) {
 	metrics.GetOrCreateCounter(l).Inc()
 }
 
-func timeShareQueuePeerRPCDuration(peer string, duration int64) {
-	l := fmt.Sprintf(shareQueuePeerRPCDurationLabel, peer)
+func timeShareQueuePeerRPCDuration(peer string, duration int64, bigRequest bool) {
+	l := fmt.Sprintf(shareQueuePeerRPCDurationLabel, peer, bigRequest)
 	metrics.GetOrCreateSummary(l).Update(float64(duration))
 }
 
-func timeShareQueuePeerE2EDuration(peer string, duration time.Duration, method string, systemEndpoint bool) {
+func timeShareQueuePeerE2EDuration(peer string, duration time.Duration, method string, systemEndpoint, bigRequest bool) {
 	millis := float64(duration.Microseconds()) / 1000.0
-	l := fmt.Sprintf(shareQueuePeerE2EDurationLabel, peer, method, systemEndpoint)
+	l := fmt.Sprintf(shareQueuePeerE2EDurationLabel, peer, method, systemEndpoint, bigRequest)
+	metrics.GetOrCreateSummary(l).Update(float64(millis))
+}
+
+func timeShareQueuePeerQueueDuration(peer string, duration time.Duration, method string, systemEndpoint, bigRequest bool) {
+	millis := float64(duration.Microseconds()) / 1000.0
+	l := fmt.Sprintf(shareQueuePeerQueueDurationLabel, peer, method, systemEndpoint, bigRequest)
 	metrics.GetOrCreateSummary(l).Update(float64(millis))
 }
 

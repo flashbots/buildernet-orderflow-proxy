@@ -125,6 +125,7 @@ func (prx *ReceiverProxy) EthSendBundle(ctx context.Context, ethSendBundle rpcty
 		systemEndpoint: systemEndpoint,
 		ethSendBundle:  &ethSendBundle,
 		method:         EthSendBundleMethod,
+		size:           rpcserver.GetRequestSize(ctx),
 	}
 
 	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
@@ -192,6 +193,7 @@ func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpcty
 		systemEndpoint: systemEndpoint,
 		mevSendBundle:  &mevSendBundle,
 		method:         MevSendBundleMethod,
+		size:           rpcserver.GetRequestSize(ctx),
 	}
 
 	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
@@ -259,6 +261,7 @@ func (prx *ReceiverProxy) EthCancelBundle(ctx context.Context, ethCancelBundle r
 		systemEndpoint:  systemEndpoint,
 		ethCancelBundle: &ethCancelBundle,
 		method:          EthCancelBundleMethod,
+		size:            rpcserver.GetRequestSize(ctx),
 	}
 
 	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
@@ -290,6 +293,7 @@ func (prx *ReceiverProxy) EthSendRawTransaction(ctx context.Context, ethSendRawT
 		systemEndpoint:        systemEndpoint,
 		ethSendRawTransaction: &ethSendRawTransaction,
 		method:                EthSendRawTransactionMethod,
+		size:                  rpcserver.GetRequestSize(ctx),
 	}
 	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
 	if err != nil {
@@ -319,6 +323,7 @@ func (prx *ReceiverProxy) BidSubsidiseBlock(ctx context.Context, bidSubsidiseBlo
 		systemEndpoint:    systemEndpoint,
 		bidSubsidiseBlock: &bidSubsidiseBlock,
 		method:            BidSubsidiseBlockMethod,
+		size:              rpcserver.GetRequestSize(ctx),
 	}
 
 	err := prx.ValidateSigner(ctx, &parsedRequest, systemEndpoint)
@@ -349,6 +354,7 @@ type ParsedRequest struct {
 	signer                common.Address
 	method                string
 	peerName              string
+	size                  int
 	receivedAt            time.Time
 	requestArgUniqueKey   *uuid.UUID
 	ethSendBundle         *rpctypes.EthSendBundleArgs

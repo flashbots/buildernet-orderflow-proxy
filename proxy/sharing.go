@@ -14,6 +14,10 @@ var (
 	requestTimeout       = time.Second * 10
 )
 
+const (
+	bigRequestSize = 50_000
+)
+
 type ShareQueue struct {
 	name         string
 	log          *slog.Logger
@@ -162,6 +166,7 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 			method string
 			data   any
 		)
+		isBig := req.size > bigRequestSize
 		if req.ethSendBundle != nil {
 			method = EthSendBundleMethod
 			data = req.ethSendBundle
@@ -182,12 +187,13 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 			shareQueueInternalErrors.Inc()
 			continue
 		}
+		timeShareQueuePeerQueueDuration(peer.name, time.Since(req.receivedAt), method, req.systemEndpoint, isBig)
 		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 		resp, err := peer.client.Call(ctx, method, data)
 		cancel()
-		timeShareQueuePeerRPCDuration(peer.name, time.Since(start).Milliseconds())
-		timeShareQueuePeerE2EDuration(peer.name, time.Since(req.receivedAt), method, req.systemEndpoint)
+		timeShareQueuePeerRPCDuration(peer.name, time.Since(start).Milliseconds(), isBig)
+		timeShareQueuePeerE2EDuration(peer.name, time.Since(req.receivedAt), method, req.systemEndpoint, isBig)
 		logSendErrorLevel := slog.LevelDebug
 		if peer.name == "local-builder" {
 			logSendErrorLevel = slog.LevelWarn
