@@ -27,7 +27,7 @@ const DefaultLocalhostMaxIdleConn = 1000
 
 var errCertificate = errors.New("failed to add certificate to pool")
 
-func createTransportForSelfSignedCert(certPEM []byte) (*http.Transport, error) {
+func createTransportForSelfSignedCert(certPEM []byte, maxOpenConnections int) (*http.Transport, error) {
 	certPool := x509.NewCertPool()
 	if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
 		return nil, errCertificate
@@ -37,6 +37,7 @@ func createTransportForSelfSignedCert(certPEM []byte) (*http.Transport, error) {
 			RootCAs:    certPool,
 			MinVersion: tls.VersionTLS12,
 		},
+		MaxConnsPerHost:   maxOpenConnections,
 		ForceAttemptHTTP2: true,
 	}
 	// Is required due to TLSCLientConfig field specified
@@ -86,12 +87,12 @@ func HTTPClientLocalhost(maxOpenConnections int) *http.Client {
 
 //nolint:ireturn
 func RPCClientWithCertAndSigner(endpoint string, certPEM []byte, signer *signature.Signer, maxOpenConnections int) (rpcclient.RPCClient, error) {
-	transport, err := createTransportForSelfSignedCert(certPEM)
+	transport, err := createTransportForSelfSignedCert(certPEM, maxOpenConnections)
 	if err != nil {
 		return nil, err
 	}
-	transport.MaxIdleConns = maxOpenConnections
-	transport.MaxIdleConnsPerHost = maxOpenConnections
+	transport.MaxIdleConns = maxOpenConnections * 2
+	transport.MaxIdleConnsPerHost = maxOpenConnections * 2
 	transport.WriteBufferSize = DefaultHTTPCLientWriteBuffer
 
 	client := rpcclient.NewClientWithOpts(endpoint, &rpcclient.RPCClientOpts{
