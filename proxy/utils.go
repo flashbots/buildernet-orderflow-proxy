@@ -37,16 +37,9 @@ func createTransportForSelfSignedCert(certPEM []byte, maxOpenConnections int) (*
 			RootCAs:    certPool,
 			MinVersion: tls.VersionTLS12,
 		},
-		MaxConnsPerHost: maxOpenConnections,
-		//ForceAttemptHTTP2: true,
+		MaxConnsPerHost: maxOpenConnections * 2,
 	}
 
-	// Is required due to TLSCLientConfig field specified
-	//err := http2.ConfigureTransport(tr)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
 	return tr, nil
 }
 
