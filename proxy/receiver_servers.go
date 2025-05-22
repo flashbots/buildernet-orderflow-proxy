@@ -16,6 +16,7 @@ var (
 	HTTPDefaultIdleTimeout             = time.Duration(cli.GetEnvInt("HTTP_IDLE_TIMEOUT_SEC", 3600)) * time.Second
 	HTTP2DefaultMaxUploadPerConnection = int32(cli.GetEnvInt("HTTP2_MAX_UPLOAD_PER_CONN", 32<<20))  // 32MiB
 	HTTP2DefaultMaxUploadPerStream     = int32(cli.GetEnvInt("HTTP2_MAX_UPLOAD_PER_STREAM", 8<<20)) // 8MiB
+	HTTP2DefaultMaxConcurrentStreams   = uint32(cli.GetEnvInt("HTTP2_MAX_CONCURRENT_STREAMS", 4096))
 )
 
 type ReceiverProxyServers struct {
@@ -35,6 +36,7 @@ func StartReceiverServers(proxy *ReceiverProxy, userListenAddress, systemListenA
 		IdleTimeout:  HTTPDefaultIdleTimeout,
 	}
 	userH2 := http2.Server{
+		MaxConcurrentStreams:         HTTP2DefaultMaxConcurrentStreams,
 		MaxUploadBufferPerConnection: HTTP2DefaultMaxUploadPerConnection,
 		MaxUploadBufferPerStream:     HTTP2DefaultMaxUploadPerStream,
 	}
@@ -54,6 +56,7 @@ func StartReceiverServers(proxy *ReceiverProxy, userListenAddress, systemListenA
 		IdleTimeout:  HTTPDefaultIdleTimeout,
 	}
 	systemH2 := http2.Server{
+		MaxConcurrentStreams:         HTTP2DefaultMaxConcurrentStreams,
 		MaxUploadBufferPerConnection: HTTP2DefaultMaxUploadPerConnection,
 		MaxUploadBufferPerStream:     HTTP2DefaultMaxUploadPerStream,
 	}

@@ -32,12 +32,19 @@ func createTransportForSelfSignedCert(certPEM []byte) (*http.Transport, error) {
 	if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
 		return nil, errCertificate
 	}
-	return &http.Transport{
+	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs:    certPool,
 			MinVersion: tls.VersionTLS12,
 		},
-	}, nil
+		ForceAttemptHTTP2: true,
+	}
+	// Is required due to TLSCLientConfig field specified
+	err := http2.ConfigureTransport(tr)
+	if err != nil {
+		return nil, err
+	}
+	return tr, nil
 }
 
 func HTTPClientWithMaxConnections(maxOpenConnections int) *http.Client {
