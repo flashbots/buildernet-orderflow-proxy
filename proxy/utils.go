@@ -55,11 +55,18 @@ func HTTPClientLocalhost(maxOpenConnections int) *http.Client {
 		MaxIdleConns:        maxOpenConnections,
 		DisableCompression:  true,
 		IdleConnTimeout:     time.Minute * 2,
-		DialContext: (&net.Dialer{
-			KeepAlive: 30 * time.Second, // detect half-open sockets soonish
-			LocalAddr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)},
-			Timeout:   1 * time.Second, // fail fast
-		}).DialContext,
+		// ---- kill delayed-ACK/Nagle ----
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			c, err := (&net.Dialer{
+				LocalAddr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)},
+				KeepAlive: 30 * time.Second,
+				Timeout:   1 * time.Second,
+			}).DialContext(ctx, network, addr)
+			if err == nil {
+				_ = c.(*net.TCPConn).SetNoDelay(true) // <-- ACK immediately
+			}
+			return c, err
+		},
 		Proxy: nil,
 	}
 	_ = http2.ConfigureTransport(localTransport)
