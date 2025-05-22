@@ -15,6 +15,7 @@ import (
 	"github.com/flashbots/go-utils/cli"
 	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/flashbots/go-utils/signature"
+	"golang.org/x/net/http2"
 )
 
 var (
@@ -22,19 +23,24 @@ var (
 	DefaultHTTPCLientWriteBuffer    = cli.GetEnvInt("HTTP_CLIENT_WRITE_BUFFER", 64<<10) // 64 KiB
 )
 
+const DefaultLocalhostMaxIdleConn = 1000
+
 var errCertificate = errors.New("failed to add certificate to pool")
 
-func createTransportForSelfSignedCert(certPEM []byte) (*http.Transport, error) {
+func createTransportForSelfSignedCert(certPEM []byte, maxOpenConnections int) (*http.Transport, error) {
 	certPool := x509.NewCertPool()
 	if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
 		return nil, errCertificate
 	}
-	return &http.Transport{
+	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs:    certPool,
 			MinVersion: tls.VersionTLS12,
 		},
-	}, nil
+		MaxConnsPerHost: maxOpenConnections * 2,
+	}
+
+	return tr, nil
 }
 
 func HTTPClientWithMaxConnections(maxOpenConnections int) *http.Client {
@@ -46,14 +52,42 @@ func HTTPClientWithMaxConnections(maxOpenConnections int) *http.Client {
 	}
 }
 
+func HTTPClientLocalhost(maxOpenConnections int) *http.Client {
+	localTransport := &http.Transport{
+		MaxIdleConnsPerHost: maxOpenConnections,
+		MaxIdleConns:        maxOpenConnections,
+		DisableCompression:  true,
+		IdleConnTimeout:     time.Minute * 2,
+		// ---- kill delayed-ACK/Nagle ----
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			c, err := (&net.Dialer{
+				LocalAddr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)},
+				KeepAlive: 30 * time.Second,
+				Timeout:   1 * time.Second,
+			}).DialContext(ctx, network, addr)
+			if err == nil {
+				_ = c.(*net.TCPConn).SetNoDelay(true) // <-- ACK immediately
+			}
+			return c, err
+		},
+		Proxy: nil,
+	}
+	_ = http2.ConfigureTransport(localTransport)
+	localCl := http.Client{
+		Transport: localTransport,
+		Timeout:   10 * time.Second,
+	}
+	return &localCl
+}
+
 //nolint:ireturn
 func RPCClientWithCertAndSigner(endpoint string, certPEM []byte, signer *signature.Signer, maxOpenConnections int) (rpcclient.RPCClient, error) {
-	transport, err := createTransportForSelfSignedCert(certPEM)
+	transport, err := createTransportForSelfSignedCert(certPEM, maxOpenConnections)
 	if err != nil {
 		return nil, err
 	}
-	transport.MaxIdleConns = maxOpenConnections
-	transport.MaxIdleConnsPerHost = maxOpenConnections
+	transport.MaxIdleConns = maxOpenConnections * 2
+	transport.MaxIdleConnsPerHost = maxOpenConnections * 2
 	transport.WriteBufferSize = DefaultHTTPCLientWriteBuffer
 
 	client := rpcclient.NewClientWithOpts(endpoint, &rpcclient.RPCClientOpts{
