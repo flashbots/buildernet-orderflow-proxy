@@ -66,7 +66,10 @@ func HTTPClientLocalhost(maxOpenConnections int) *http.Client {
 				Timeout:   1 * time.Second,
 			}).DialContext(ctx, network, addr)
 			if err == nil {
-				_ = c.(*net.TCPConn).SetNoDelay(true) // <-- ACK immediately
+				tcp, ok := c.(*net.TCPConn)
+				if ok {
+					err = tcp.SetNoDelay(true) // <-- ACK immediately
+				}
 			}
 			return c, err
 		},
