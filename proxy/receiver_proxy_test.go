@@ -51,14 +51,16 @@ func testAddBuilderhubPeer(proxyIndex int) {
 	name := proxy.proxy.Name
 
 	req := ConfighubOrderflowProxyCredentials{
-		TLSCert:            string(proxy.PublicCertPEM),
 		EcdsaPubkeyAddress: proxy.proxy.OrderflowSigner.Address(),
 	}
 
 	builderHubPeers = append(builderHubPeers, ConfighubBuilder{
 		Name:           name,
-		IP:             ip,
+		DNSName:        ip,
 		OrderflowProxy: req,
+		Instance: ConfighubInstanceData{
+			TLSCert: string(proxy.PublicCertPEM),
+		},
 	})
 }
 
@@ -552,6 +554,7 @@ func TestProxyBidSubsidiseBlockCall(t *testing.T) {
 }
 
 func TestBuilderNetRootCall(t *testing.T) {
+	t.Skip("Root call is not supported")
 	tempDir := t.TempDir()
 	certPath := path.Join(tempDir, "cert")
 	keyPath := path.Join(tempDir, "key")

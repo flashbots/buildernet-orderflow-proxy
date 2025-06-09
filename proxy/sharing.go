@@ -133,7 +133,7 @@ func (sq *ShareQueue) Run() {
 				if info.OrderflowProxy.EcdsaPubkeyAddress == sq.signer.Address() {
 					continue
 				}
-				client, err := RPCClientWithCertAndSigner(OrderflowProxyURLFromIP(info.IP), []byte(info.OrderflowProxy.TLSCert), sq.signer, workersPerPeer)
+				client, err := RPCClientWithCertAndSigner(info.SystemAPIAddress(), []byte(info.TLSCert()), sq.signer, workersPerPeer)
 				if err != nil {
 					sq.log.Error("Failed to create a peer client", slog.Any("error", err))
 					shareQueueInternalErrors.Inc()
