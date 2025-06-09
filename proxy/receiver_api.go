@@ -426,7 +426,7 @@ func (prx *ReceiverProxy) prepHTML() ([]byte, error) {
 	htmlData := struct {
 		Cert string
 	}{
-		Cert: string(prx.PublicCertPEM),
+		Cert: "",
 	}
 	htmlBytes := bytes.Buffer{}
 	err = templ.Execute(&htmlBytes, htmlData)

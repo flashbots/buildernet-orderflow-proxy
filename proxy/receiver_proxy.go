@@ -1,8 +1,6 @@
 package proxy
 
 import (
-	"context"
-	"crypto/tls"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -11,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/flashbots/go-utils/signature"
-	utils_tls "github.com/flashbots/go-utils/tls"
 	"github.com/google/uuid"
 	"github.com/hashicorp/golang-lru/v2/expirable"
 	"golang.org/x/time/rate"
@@ -40,14 +37,11 @@ type ReceiverProxy struct {
 	ConfigHub *BuilderConfigHub
 
 	OrderflowSigner *signature.Signer
-	PublicCertPEM   []byte
-	Certificate     tls.Certificate
 
 	localBuilder rpcclient.RPCClient
 
 	UserHandler   http.Handler
 	SystemHandler http.Handler
-	CertHandler   http.Handler // this endpoint just returns generated certificate
 
 	updatePeers chan []ConfighubBuilder
 	shareQueue  chan *ParsedRequest
@@ -77,11 +71,6 @@ type ReceiverProxyConstantConfig struct {
 type ReceiverProxyConfig struct {
 	ReceiverProxyConstantConfig
 
-	CertValidDuration time.Duration
-	CertHosts         []string
-	CertPath          string
-	CertKeyPath       string
-
 	BuilderConfigHubEndpoint string
 	ArchiveEndpoint          string
 	ArchiveConnections       int
@@ -103,16 +92,6 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		return nil, err
 	}
 
-	cert, key, err := utils_tls.GetOrGenerateTLS(config.CertPath, config.CertKeyPath, config.CertValidDuration, config.CertHosts)
-	if err != nil {
-		return nil, err
-	}
-
-	certificate, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		return nil, err
-	}
-
 	localCl := HTTPClientLocalhost(DefaultLocalhostMaxIdleConn)
 
 	localBuilder := rpcclient.NewClientWithOpts(config.LocalBuilderEndpoint, &rpcclient.RPCClientOpts{
@@ -128,8 +107,6 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		ReceiverProxyConstantConfig: config.ReceiverProxyConstantConfig,
 		ConfigHub:                   NewBuilderConfigHub(config.Log, config.BuilderConfigHubEndpoint),
 		OrderflowSigner:             orderflowSigner,
-		PublicCertPEM:               cert,
-		Certificate:                 certificate,
 		localBuilder:                localBuilder,
 		requestUniqueKeysRLU:        expirable.NewLRU[uuid.UUID, struct{}](requestsRLUSize, nil, requestsRLUTTL),
 		replacementNonceRLU:         expirable.NewLRU[replacementNonceKey, int](replacementNonceSize, nil, replacementNonceTTL),
@@ -151,14 +128,6 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		return nil, err
 	}
 	prx.UserHandler = userHandler
-
-	prx.CertHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/octet-stream")
-		_, err := w.Write(prx.PublicCertPEM)
-		if err != nil {
-			prx.Log.Warn("Failed to serve certificate", slog.Any("error", err))
-		}
-	})
 
 	shareQeueuCh := make(chan *ParsedRequest, ReceiverProxyWorkerQueueSize)
 	updatePeersCh := make(chan []ConfighubBuilder)
@@ -223,44 +192,6 @@ func (prx *ReceiverProxy) Stop() {
 	close(prx.archiveQueue)
 	close(prx.archiveFlushQueue)
 	close(prx.peerUpdaterClose)
-}
-
-func (prx *ReceiverProxy) TLSConfig() *tls.Config {
-	return &tls.Config{
-		Certificates: []tls.Certificate{prx.Certificate},
-		MinVersion:   tls.VersionTLS13,
-	}
-}
-
-func (prx *ReceiverProxy) RegisterSecrets(ctx context.Context) error {
-	const maxRetries = 10
-	const timeBetweenRetries = time.Second * 10
-
-	retry := 0
-	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		err := prx.ConfigHub.RegisterCredentials(ctx, ConfighubOrderflowProxyCredentials{
-			TLSCert:            string(prx.PublicCertPEM),
-			EcdsaPubkeyAddress: prx.OrderflowSigner.Address(),
-		})
-		if err == nil {
-			prx.Log.Info("Credentials registered on config hub")
-			return nil
-		}
-
-		retry += 1
-		if retry >= maxRetries {
-			return err
-		}
-		prx.Log.Error("Fail to register credentials", slog.Any("error", err))
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(timeBetweenRetries):
-		}
-	}
 }
 
 // RequestNewPeers updates currently available peers from the builder config hub

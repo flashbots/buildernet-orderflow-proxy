@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"net/http/pprof"
@@ -22,11 +21,7 @@ import (
 const (
 	flagUserListenAddr   = "user-listen-addr"
 	flagSystemListenAddr = "system-listen-addr"
-	flagCertListenAddr   = "cert-listen-addr"
 	flagMaxUserRPS       = "max-user-requests-per-second"
-
-	flagCertPath    = "cert-path"
-	flagCertKeyPath = "cert-key-path"
 )
 
 var flags = []cli.Flag{
@@ -42,12 +37,6 @@ var flags = []cli.Flag{
 		Value:   "127.0.0.1:5544",
 		Usage:   "server to receive orderflow from BuilderNet network",
 		EnvVars: []string{"SYSTEM_LISTEN_ADDR"},
-	},
-	&cli.StringFlag{
-		Name:    flagCertListenAddr,
-		Value:   "127.0.0.1:14727",
-		Usage:   "address to listen on for orderflow proxy serving its SSL certificate on /cert",
-		EnvVars: []string{"CERT_LISTEN_ADDR"},
 	},
 
 	// Connections to Builder, BuilderHub, RPC and block-processor
@@ -106,30 +95,6 @@ var flags = []cli.Flag{
 		Value:   0,
 		Usage:   "Maximum number of unique user requests per second (set 0 to disable)",
 		EnvVars: []string{"MAX_USER_RPS"},
-	},
-
-	// Certificate config
-	&cli.DurationFlag{
-		Name:    "cert-duration",
-		Value:   time.Hour * 24 * 365,
-		Usage:   "generated certificate duration",
-		EnvVars: []string{"CERT_DURATION"},
-	},
-	&cli.StringSliceFlag{
-		Name:    "cert-hosts",
-		Value:   cli.NewStringSlice("127.0.0.1", "localhost"),
-		Usage:   "generated certificate hosts",
-		EnvVars: []string{"CERT_HOSTS"},
-	},
-	&cli.StringFlag{
-		Name:    flagCertPath,
-		Usage:   "path where to store the generated certificate",
-		EnvVars: []string{"CERT_PATH"},
-	},
-	&cli.StringFlag{
-		Name:    flagCertKeyPath,
-		Usage:   "path where to store the generated certificate key",
-		EnvVars: []string{"CERT_KEY_PATH"},
 	},
 
 	// Logging, metrics and debug
@@ -246,20 +211,8 @@ func runMain(cCtx *cli.Context) error {
 	archiveWorkerCount := cCtx.Int("archive-worker-count")
 	maxUserRPS := cCtx.Int(flagMaxUserRPS)
 
-	certDuration := cCtx.Duration("cert-duration")
-	certHosts := cCtx.StringSlice("cert-hosts")
-	certPath := cCtx.String(flagCertPath)
-	certKeyPath := cCtx.String(flagCertKeyPath)
-	if certPath == "" || certKeyPath == "" {
-		return errors.New("cert-path and cert-key-path must be set")
-	}
-
 	proxyConfig := &proxy.ReceiverProxyConfig{
 		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
-		CertValidDuration:           certDuration,
-		CertHosts:                   certHosts,
-		CertPath:                    certPath,
-		CertKeyPath:                 certKeyPath,
 		BuilderConfigHubEndpoint:    builderConfigHubEndpoint,
 		ArchiveEndpoint:             archiveEndpoint,
 		ArchiveConnections:          connectionsPerPeer,
@@ -286,24 +239,16 @@ func runMain(cCtx *cli.Context) error {
 		}
 	}()
 
-	err = instance.RegisterSecrets(registerContext)
-	registerCancel()
-	if err != nil {
-		log.Error("Failed to generate and publish secrets", "err", err)
-		return err
-	}
-
 	userListenAddr := cCtx.String(flagUserListenAddr)
 	systemListenAddr := cCtx.String(flagSystemListenAddr)
-	certListenAddr := cCtx.String(flagCertListenAddr)
 
-	servers, err := proxy.StartReceiverServers(instance, userListenAddr, systemListenAddr, certListenAddr)
+	servers, err := proxy.StartReceiverServers(instance, userListenAddr, systemListenAddr)
 	if err != nil {
 		log.Error("Failed to start proxy server", "err", err)
 		return err
 	}
 
-	log.Info("Started receiver proxy", "userListenAddress", userListenAddr, "systemListenAddress", systemListenAddr, "certListenAddress", certListenAddr)
+	log.Info("Started receiver proxy", "userListenAddress", userListenAddr, "systemListenAddress", systemListenAddr)
 
 	<-exit
 	servers.Stop()
