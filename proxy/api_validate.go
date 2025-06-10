@@ -17,6 +17,7 @@ var (
 	errLocalEndpointSbundleMetadata = errors.New("mev share bundle should not contain metadata when sent to local endpoint")
 	errVersionNotSet                = errors.New("version field should be set")
 	errInvalidVersion               = errors.New("invalid version")
+	errMoreThanOneRefundTxHash      = errors.New("no more than one refund tx hash is allowed")
 )
 
 // EnsureReplacementUUID updates bundle with consistent replacement uuid value (falling back to `uuid` field if needed)
@@ -47,6 +48,10 @@ func ValidateEthSendBundle(args *rpctypes.EthSendBundleArgs, publicEndpoint bool
 	valid := IsVersionValid(args.Version)
 	if !valid {
 		return errInvalidVersion
+	}
+
+	if len(args.RefundTxHashes) > 1 {
+		return errMoreThanOneRefundTxHash
 	}
 
 	if publicEndpoint {
