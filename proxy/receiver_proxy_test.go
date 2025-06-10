@@ -119,7 +119,7 @@ func StartTestOrderflowProxy(name, certPath, certKeyPath string) (*OrderflowProx
 	proxy := createProxy(localBuilderServer.URL, name, certPath, certKeyPath)
 	publicProxyServer := &http.Server{ //nolint:gosec
 		Handler:   proxy.SystemHandler,
-		TLSConfig: tlsConfig,
+		TLSConfig: tlsConfig.Clone(),
 	}
 	publicListener, err := net.Listen("tcp", ":0") //nolint:gosec
 	if err != nil {
@@ -131,7 +131,7 @@ func StartTestOrderflowProxy(name, certPath, certKeyPath string) (*OrderflowProx
 
 	localProxyServer := &http.Server{ //nolint:gosec
 		Handler:   proxy.UserHandler,
-		TLSConfig: tlsConfig,
+		TLSConfig: tlsConfig.Clone(),
 	}
 	localListener, err := net.Listen("tcp", ":0") //nolint:gosec
 	if err != nil {
