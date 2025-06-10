@@ -1,11 +1,9 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"errors"
-	"html/template"
 	"log/slog"
 	"time"
 
@@ -26,9 +24,6 @@ const (
 	EthSendRawTransactionMethod = "eth_sendRawTransaction"
 	BidSubsidiseBlockMethod     = "bid_subsidiseBlock"
 )
-
-//go:embed html/index.html
-var landingPageHTML string
 
 var (
 	errUnknownPeer          = errors.New("unknown peers can't send to the system address")
@@ -63,11 +58,6 @@ func (prx *ReceiverProxy) SystemJSONRPCHandler(maxRequestBodySizeBytes int64) (*
 }
 
 func (prx *ReceiverProxy) UserJSONRPCHandler(maxRequestBodySizeBytes int64) (*rpcserver.JSONRPCHandler, error) {
-	landingPageHTML, err := prx.prepHTML()
-	if err != nil {
-		return nil, err
-	}
-
 	handler, err := rpcserver.NewJSONRPCHandler(rpcserver.Methods{
 		EthSendBundleMethod:         prx.EthSendBundleUser,
 		MevSendBundleMethod:         prx.MevSendBundleUser,
@@ -80,7 +70,6 @@ func (prx *ReceiverProxy) UserJSONRPCHandler(maxRequestBodySizeBytes int64) (*rp
 			Log:                              prx.Log,
 			MaxRequestBodySizeBytes:          maxRequestBodySizeBytes,
 			VerifyRequestSignatureFromHeader: true,
-			GetResponseContent:               landingPageHTML,
 		},
 	)
 
@@ -415,24 +404,4 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 
 	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "archive_queue")
 	return nil
-}
-
-func (prx *ReceiverProxy) prepHTML() ([]byte, error) {
-	templ, err := template.New("index").Parse(landingPageHTML)
-	if err != nil {
-		return nil, err
-	}
-
-	htmlData := struct {
-		Cert string
-	}{
-		Cert: "",
-	}
-	htmlBytes := bytes.Buffer{}
-	err = templ.Execute(&htmlBytes, htmlData)
-	if err != nil {
-		return nil, err
-	}
-
-	return htmlBytes.Bytes(), nil
 }

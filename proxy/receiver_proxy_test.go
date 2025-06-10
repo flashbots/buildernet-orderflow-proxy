@@ -553,23 +553,6 @@ func TestProxyBidSubsidiseBlockCall(t *testing.T) {
 	expectNoRequest(t, proxies[2].localBuilderRequests)
 }
 
-func TestBuilderNetRootCall(t *testing.T) {
-	t.Skip("Root call is not supported")
-	tempDir := t.TempDir()
-	certPath := path.Join(tempDir, "cert")
-	keyPath := path.Join(tempDir, "key")
-	proxy, err := StartTestOrderflowProxy("1", certPath, keyPath)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-
-	rr := httptest.NewRecorder()
-	proxy.localServer.Handler.ServeHTTP(rr, req)
-	respBody, err := io.ReadAll(rr.Body)
-	require.NoError(t, err)
-	require.Contains(t, string(respBody), "-----BEGIN CERTIFICATE-----")
-}
-
 func TestValidateLocalBundles(t *testing.T) {
 	signer, err := signature.NewSignerFromHexPrivateKey("0xd63b3c447fdea415a05e4c0b859474d14105a88178efdf350bc9f7b05be3cc58")
 	require.NoError(t, err)
