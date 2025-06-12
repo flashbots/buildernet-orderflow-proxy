@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -215,4 +216,35 @@ func (prx *ReceiverProxy) RequestNewPeers() error {
 // FlushArchiveQueue forces the archive queue to flush
 func (prx *ReceiverProxy) FlushArchiveQueue() {
 	prx.archiveFlushQueue <- struct{}{}
+}
+
+func (prx *ReceiverProxy) RegisterSecrets(ctx context.Context) error {
+	const maxRetries = 10
+	const timeBetweenRetries = time.Second * 10
+
+	retry := 0
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		err := prx.ConfigHub.RegisterCredentials(ctx, ConfighubOrderflowProxyCredentials{
+			TLSCert:            "",
+			EcdsaPubkeyAddress: prx.OrderflowSigner.Address(),
+		})
+		if err == nil {
+			prx.Log.Info("Credentials registered on config hub")
+			return nil
+		}
+
+		retry += 1
+		if retry >= maxRetries {
+			return err
+		}
+		prx.Log.Error("Fail to register credentials", slog.Any("error", err))
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(timeBetweenRetries):
+		}
+	}
 }

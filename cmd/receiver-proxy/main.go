@@ -239,6 +239,13 @@ func runMain(cCtx *cli.Context) error {
 		}
 	}()
 
+	err = instance.RegisterSecrets(registerContext)
+	registerCancel()
+	if err != nil {
+		log.Error("Failed to publish secrets", "err", err)
+		return err
+	}
+
 	userListenAddr := cCtx.String(flagUserListenAddr)
 	systemListenAddr := cCtx.String(flagSystemListenAddr)
 

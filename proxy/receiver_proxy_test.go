@@ -44,24 +44,34 @@ var (
 	flashbotsSigner *signature.Signer
 )
 
-func testAddBuilderhubPeer(proxyIndex int) {
+func testAddBuilderhubPeer(t *testing.T, proxyIndex int) {
+	t.Helper()
 	proxy := proxies[proxyIndex]
 
+	// first we ask proxy to register its own credentials on the builderhub (its will register signign key address)
+	err := proxy.proxy.RegisterSecrets(context.Background())
+	if err != nil {
+		t.Fatal("Failed to register secret", err)
+	}
+
+	// next we add instance data for a valid TLS certificate
 	ip := proxy.ip
 	name := proxy.proxy.Name
 
-	req := ConfighubOrderflowProxyCredentials{
-		EcdsaPubkeyAddress: proxy.proxy.OrderflowSigner.Address(),
+	index := -1
+	for i, peer := range builderHubPeers {
+		if peer.Name == name && peer.IP == ip {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		t.Fatal("Peer is not properly registered on the builerhub")
 	}
 
-	builderHubPeers = append(builderHubPeers, ConfighubBuilder{
-		Name:           name,
-		DNSName:        ip,
-		OrderflowProxy: req,
-		Instance: ConfighubInstanceData{
-			TLSCert: string(proxy.PublicCertPEM),
-		},
-	})
+	builderHubPeers[index].Instance = ConfighubInstanceData{
+		TLSCert: string(proxy.PublicCertPEM),
+	}
 }
 
 func ServeHTTPRequestToChan(channel chan *RequestData) *httptest.Server {
@@ -168,7 +178,32 @@ func TestMain(m *testing.M) {
 
 	archiveServerRequests = make(chan *RequestData)
 	builderHub = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/l1-builder/v1/builders" {
+		body, _ := io.ReadAll(r.Body)
+
+		if r.URL.Path == "/api/l1-builder/v1/register_credentials/orderflow_proxy" {
+			var req ConfighubOrderflowProxyCredentials
+			err := json.Unmarshal(body, &req)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(err.Error()))
+			}
+			var (
+				ip   string
+				name string
+			)
+			for _, proxy := range proxies {
+				if proxy.proxy.OrderflowSigner.Address() == req.EcdsaPubkeyAddress {
+					ip = proxy.ip
+					name = proxy.proxy.Name
+					break
+				}
+			}
+			builderHubPeers = append(builderHubPeers, ConfighubBuilder{
+				Name:           name,
+				IP:             ip,
+				OrderflowProxy: req,
+			})
+		} else if r.URL.Path == "/api/l1-builder/v1/builders" {
 			res, err := json.Marshal(builderHubPeers)
 			if err != nil {
 				panic(err)
@@ -294,7 +329,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 
 	// we start with no peers
 	builderHubPeers = nil
-	testAddBuilderhubPeer(0)
+	testAddBuilderhubPeer(t, 0)
 	proxiesUpdatePeers(t)
 
 	blockNumber := hexutil.Uint64(1000)
@@ -312,7 +347,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	slog.Info("Adding first peer")
 
 	// add one more peer
-	testAddBuilderhubPeer(1)
+	testAddBuilderhubPeer(t, 1)
 	proxiesUpdatePeers(t)
 
 	blockNumber = hexutil.Uint64(1001)
@@ -331,7 +366,7 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	// add another peer
 	slog.Info("Adding second peer")
 
-	testAddBuilderhubPeer(2)
+	testAddBuilderhubPeer(t, 2)
 	proxiesUpdatePeers(t)
 
 	blockNumber = hexutil.Uint64(1002)
@@ -375,7 +410,7 @@ func TestProxySendToArchive(t *testing.T) {
 
 	// we start with no peers
 	builderHubPeers = nil
-	testAddBuilderhubPeer(0)
+	testAddBuilderhubPeer(t, 0)
 	proxiesUpdatePeers(t)
 
 	apiNow = func() time.Time {
@@ -458,7 +493,7 @@ func TestProxyShareBundleReplacementUUIDAndCancellation(t *testing.T) {
 
 	// we start with no peers
 	builderHubPeers = nil
-	testAddBuilderhubPeer(0)
+	testAddBuilderhubPeer(t, 0)
 	proxiesUpdatePeers(t)
 
 	// first call
@@ -538,7 +573,7 @@ func TestProxyBidSubsidiseBlockCall(t *testing.T) {
 	// we add all proxies to the list of peers
 	builderHubPeers = nil
 	for i := range proxies {
-		testAddBuilderhubPeer(i)
+		testAddBuilderhubPeer(t, i)
 	}
 	proxiesUpdatePeers(t)
 
@@ -564,7 +599,7 @@ func TestValidateLocalBundles(t *testing.T) {
 
 	// we start with no peers
 	builderHubPeers = nil
-	testAddBuilderhubPeer(0)
+	testAddBuilderhubPeer(t, 0)
 	proxiesUpdatePeers(t)
 
 	apiNow = func() time.Time {

@@ -14,7 +14,7 @@ import (
 )
 
 type ConfighubOrderflowProxyCredentials struct {
-	TLSCert            string         `json:"tls_cert"` // for backward compatibility
+	TLSCert            string         `json:"tls_cert,omitempty"` // for backward compatibility
 	EcdsaPubkeyAddress common.Address `json:"ecdsa_pubkey_address"`
 }
 
