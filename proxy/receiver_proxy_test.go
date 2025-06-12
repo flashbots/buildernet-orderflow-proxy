@@ -636,3 +636,20 @@ func TestValidateLocalBundles(t *testing.T) {
 
 	proxiesFlushQueue()
 }
+
+func TestJSONRPCServerReadyzOK(t *testing.T) {
+	tempDir := t.TempDir()
+	certPath := path.Join(tempDir, "cert")
+	keyPath := path.Join(tempDir, "key")
+	proxy, err := StartTestOrderflowProxy("1", certPath, keyPath)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+
+	rr := httptest.NewRecorder()
+	proxy.localServer.Handler.ServeHTTP(rr, req)
+	respBody, err := io.ReadAll(rr.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Contains(t, string(respBody), "ready")
+}

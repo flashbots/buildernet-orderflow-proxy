@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -70,10 +71,32 @@ func (prx *ReceiverProxy) UserJSONRPCHandler(maxRequestBodySizeBytes int64) (*rp
 			Log:                              prx.Log,
 			MaxRequestBodySizeBytes:          maxRequestBodySizeBytes,
 			VerifyRequestSignatureFromHeader: true,
+			ReadyHandler:                     prx.readyHandler,
 		},
 	)
 
 	return handler, err
+}
+
+// readyHandler calls /readyz on rbuilder
+func (prx *ReceiverProxy) readyHandler(w http.ResponseWriter, r *http.Request) error {
+	resp, err := http.Get(prx.localBuilderEndpoint + "/readyz")
+	if err != nil {
+		prx.Log.Warn("Failed to check builder readiness", slog.Any("error", err))
+		http.Error(w, "not ready", http.StatusServiceUnavailable)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "not ready", http.StatusServiceUnavailable)
+		return nil
+	}
+
+	// If the builder is ready, return 200 OK
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ready"))
+	return nil
 }
 
 func (prx *ReceiverProxy) ValidateSigner(ctx context.Context, req *ParsedRequest, systemEndpoint bool) error {
