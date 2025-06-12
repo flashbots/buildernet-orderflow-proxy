@@ -38,7 +38,8 @@ type ReceiverProxy struct {
 
 	OrderflowSigner *signature.Signer
 
-	localBuilder rpcclient.RPCClient
+	localBuilder         rpcclient.RPCClient
+	localBuilderEndpoint string
 
 	UserHandler   http.Handler
 	SystemHandler http.Handler
@@ -108,6 +109,7 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		ConfigHub:                   NewBuilderConfigHub(config.Log, config.BuilderConfigHubEndpoint),
 		OrderflowSigner:             orderflowSigner,
 		localBuilder:                localBuilder,
+		localBuilderEndpoint:        config.LocalBuilderEndpoint,
 		requestUniqueKeysRLU:        expirable.NewLRU[uuid.UUID, struct{}](requestsRLUSize, nil, requestsRLUTTL),
 		replacementNonceRLU:         expirable.NewLRU[replacementNonceKey, int](replacementNonceSize, nil, replacementNonceTTL),
 		userAPIRateLimiter:          userAPIRateLimiter,
