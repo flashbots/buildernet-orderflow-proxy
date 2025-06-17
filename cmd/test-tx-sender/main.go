@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"errors"
-	"io"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/flashbots/go-utils/rpctypes"
 	"github.com/flashbots/go-utils/signature"
 	"github.com/flashbots/tdx-orderflow-proxy/proxy"
@@ -21,15 +20,9 @@ var flags []cli.Flag = []cli.Flag{
 	// input and output
 	&cli.StringFlag{
 		Name:    "local-orderflow-endpoint",
-		Value:   "https://127.0.0.1:443",
+		Value:   "http://127.0.0.1",
 		Usage:   "address to send orderflow to",
 		EnvVars: []string{"LOCAL_ORDERPLOW_ENDPOINT"},
-	},
-	&cli.StringFlag{
-		Name:    "cert-endpoint",
-		Value:   "http://127.0.0.1:14727",
-		Usage:   "address that serves certifiate on /cert endpoint",
-		EnvVars: []string{"CERT_ENDPOINT"},
 	},
 	&cli.StringFlag{
 		Name:    "signer-private-key",
@@ -57,7 +50,6 @@ func main() {
 		Flags: flags,
 		Action: func(cCtx *cli.Context) error {
 			localOrderflowEndpoint := cCtx.String("local-orderflow-endpoint")
-			certEndpoint := cCtx.String("cert-endpoint")
 			signerPrivateKey := cCtx.String("signer-private-key")
 
 			orderflowSigner, err := signature.NewSignerFromHexPrivateKey(signerPrivateKey)
@@ -66,16 +58,9 @@ func main() {
 			}
 			slog.Info("Ordeflow signing address", "address", orderflowSigner.Address())
 
-			cert, err := fetchCertificate(certEndpoint + "/cert")
-			if err != nil {
-				return err
-			}
-			slog.Info("Fetched certificate")
-
-			client, err := proxy.RPCClientWithCertAndSigner(localOrderflowEndpoint, cert, orderflowSigner, 1)
-			if err != nil {
-				return err
-			}
+			client := rpcclient.NewClientWithOpts(localOrderflowEndpoint, &rpcclient.RPCClientOpts{
+				Signer: orderflowSigner,
+			})
 			slog.Info("Created client")
 
 			rpcEndpoint := cCtx.String("rpc-endpoint")
@@ -187,18 +172,4 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func fetchCertificate(endpoint string) ([]byte, error) {
-	resp, err := http.Get(endpoint) //nolint:gosec
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
 }
