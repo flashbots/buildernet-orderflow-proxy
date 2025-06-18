@@ -174,6 +174,12 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 		logger.Info("Stopped proxying requets to peer", slog.Int("proxiedRequestCount", proxiedRequestCount))
 	}()
 
+	request := fasthttp.AcquireRequest()
+	request.SetRequestURI(peer.endpoint)
+	request.Header.SetMethod(http.MethodPost)
+	request.Header.SetContentTypeBytes([]byte("application/json"))
+	defer fasthttp.ReleaseRequest(request)
+
 	for {
 		req, more := <-peer.ch
 		if !more {
@@ -187,10 +193,6 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 
 		timeInQueue := time.Since(req.receivedAt)
 
-		request := fasthttp.AcquireRequest()
-		request.SetRequestURI(peer.endpoint)
-		request.Header.SetMethod(http.MethodPost)
-		request.Header.SetContentTypeBytes([]byte("application/json"))
 		request.Header.Set(signature.HTTPHeader, req.signatureHeader)
 		request.SetBodyRaw(req.serializedJSONRPCRequest)
 
@@ -199,7 +201,6 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 		err := peer.client.DoTimeout(request, resp, requestTimeout)
 		requestDuration := time.Since(start)
 		timeE2E := timeInQueue + requestDuration
-		fasthttp.ReleaseRequest(request)
 
 		// in background update metrics and handle response
 		go func() {
