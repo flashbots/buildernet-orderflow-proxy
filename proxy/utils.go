@@ -15,6 +15,7 @@ import (
 	"github.com/flashbots/go-utils/cli"
 	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/flashbots/go-utils/signature"
+	"github.com/valyala/fasthttp"
 	"golang.org/x/net/http2"
 )
 
@@ -50,6 +51,28 @@ func HTTPClientWithMaxConnections(maxOpenConnections int) *http.Client {
 			MaxIdleConnsPerHost: maxOpenConnections,
 		},
 	}
+}
+
+func NewFastHTTPClient(certPEM []byte, maxOpenConnections int) (*fasthttp.Client, error) {
+	var tlsConfig *tls.Config
+	if certPEM != nil {
+		certPool := x509.NewCertPool()
+		if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
+			return nil, errCertificate
+		}
+		tlsConfig = &tls.Config{
+			RootCAs:    certPool,
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+
+	return &fasthttp.Client{
+		MaxIdleConnDuration:           time.Minute * 2,
+		NoDefaultUserAgentHeader:      true,
+		DisableHeaderNamesNormalizing: true,
+		// DisablePathNormalizing:        true,
+		TLSConfig: tlsConfig,
+	}, nil
 }
 
 func HTTPClientLocalhost(maxOpenConnections int) *http.Client {

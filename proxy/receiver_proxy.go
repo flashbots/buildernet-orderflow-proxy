@@ -136,14 +136,15 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 	updatePeersCh := make(chan []ConfighubBuilder)
 	prx.shareQueue = shareQeueuCh
 	prx.updatePeers = updatePeersCh
+
 	queue := ShareQueue{
-		name:           prx.Name,
-		log:            prx.Log,
-		queue:          shareQeueuCh,
-		updatePeers:    updatePeersCh,
-		localBuilder:   prx.localBuilder,
-		signer:         prx.OrderflowSigner,
-		workersPerPeer: config.ConnectionsPerPeer,
+		name:                 prx.Name,
+		log:                  prx.Log,
+		queue:                shareQeueuCh,
+		updatePeers:          updatePeersCh,
+		localBuilderEndpoint: config.LocalBuilderEndpoint,
+		signer:               prx.OrderflowSigner,
+		workersPerPeer:       config.ConnectionsPerPeer,
 	}
 	go queue.Run()
 
