@@ -362,6 +362,9 @@ type ParsedRequest struct {
 	ethCancelBundle       *rpctypes.EthCancelBundleArgs
 	ethSendRawTransaction *rpctypes.EthSendRawTransactionArgs
 	bidSubsidiseBlock     *rpctypes.BidSubsisideBlockArgs
+
+	serializedJSONRPCRequest []byte
+	signatureHeader          string
 }
 
 func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest ParsedRequest) error {
@@ -394,6 +397,14 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 	}
 
 	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "rate_limiting")
+	startAt = time.Now()
+
+	err := SerializeParsedRequestForSharing(&parsedRequest, prx.OrderflowSigner)
+	if err != nil {
+		prx.Log.Warn("Failed to serialize request for sharing", slog.Any("error", err))
+	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "serialize_parsed_request")
 	startAt = time.Now()
 
 	select {

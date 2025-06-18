@@ -75,7 +75,6 @@ func main() {
 			requests := cCtx.Int("num-requests")
 
 			return runE2ELatencyTest(client, receiverPort, senders, requests)
-
 		},
 	}
 
@@ -122,7 +121,7 @@ func (s *sharedState) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var request jsonRPCRequest
-	err = json.Unmarshal(body, &request)
+	err := json.Unmarshal(body, &request)
 	if err != nil {
 		return
 	}
@@ -135,7 +134,6 @@ func (s *sharedState) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.receivedAt[decoded] = receivedAt
 	s.mu.Unlock()
-
 }
 
 func (s *sharedState) RunSender(client rpcclient.RPCClient, start, count int, wg *sync.WaitGroup) {
@@ -163,7 +161,7 @@ func (s *sharedState) RunSender(client rpcclient.RPCClient, start, count int, wg
 	}
 }
 
-func runE2ELatencyTest(client rpcclient.RPCClient, receiverPort int, senders, requests int) error {
+func runE2ELatencyTest(client rpcclient.RPCClient, receiverPort, senders, requests int) error {
 	state := &sharedState{
 		sentAt:     make(map[uint64]time.Time),
 		receivedAt: make(map[uint64]time.Time),

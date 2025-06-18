@@ -70,7 +70,6 @@ func NewSenderProxy(config SenderProxyConfig) (*SenderProxy, error) {
 		log:            prx.Log,
 		queue:          prx.shareQueue,
 		updatePeers:    prx.updatePeers,
-		localBuilder:   nil,
 		signer:         prx.OrderflowSigner,
 		workersPerPeer: config.ConnectionsPerPeer,
 	}
