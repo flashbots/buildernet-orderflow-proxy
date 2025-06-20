@@ -208,6 +208,7 @@ func createProxy(localBuilder, name, certPath, certKeyPath string) *ReceiverProx
 			Log:                    log,
 			Name:                   name,
 			FlashbotsSignerAddress: flashbotsSigner.Address(),
+			LocalBuilderEndpoint:   localBuilder,
 		},
 		CertValidDuration: time.Hour * 24,
 		CertHosts:         []string{"localhost", "127.0.0.1"},
@@ -216,7 +217,6 @@ func createProxy(localBuilder, name, certPath, certKeyPath string) *ReceiverProx
 
 		BuilderConfigHubEndpoint: builderHub.URL,
 		ArchiveEndpoint:          archiveServer.URL,
-		LocalBuilderEndpoint:     localBuilder,
 		EthRPC:                   "eth-rpc-not-set",
 		MaxUserRPS:               10,
 	})

@@ -255,20 +255,23 @@ func runMain(cCtx *cli.Context) error {
 	}
 
 	proxyConfig := &proxy.ReceiverProxyConfig{
-		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
-		CertValidDuration:           certDuration,
-		CertHosts:                   certHosts,
-		CertPath:                    certPath,
-		CertKeyPath:                 certKeyPath,
-		BuilderConfigHubEndpoint:    builderConfigHubEndpoint,
-		ArchiveEndpoint:             archiveEndpoint,
-		ArchiveConnections:          connectionsPerPeer,
-		LocalBuilderEndpoint:        builderEndpoint,
-		EthRPC:                      rpcEndpoint,
-		MaxRequestBodySizeBytes:     maxRequestBodySizeBytes,
-		ConnectionsPerPeer:          connectionsPerPeer,
-		MaxUserRPS:                  maxUserRPS,
-		ArchiveWorkerCount:          archiveWorkerCount,
+		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{
+			Log:                    log,
+			FlashbotsSignerAddress: flashbotsSignerAddress,
+			LocalBuilderEndpoint:   builderEndpoint,
+		},
+		CertValidDuration:        certDuration,
+		CertHosts:                certHosts,
+		CertPath:                 certPath,
+		CertKeyPath:              certKeyPath,
+		BuilderConfigHubEndpoint: builderConfigHubEndpoint,
+		ArchiveEndpoint:          archiveEndpoint,
+		ArchiveConnections:       connectionsPerPeer,
+		EthRPC:                   rpcEndpoint,
+		MaxRequestBodySizeBytes:  maxRequestBodySizeBytes,
+		ConnectionsPerPeer:       connectionsPerPeer,
+		MaxUserRPS:               maxUserRPS,
+		ArchiveWorkerCount:       archiveWorkerCount,
 	}
 
 	instance, err := proxy.NewReceiverProxy(*proxyConfig)
