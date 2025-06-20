@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/flashbots/go-utils/jsonrpc"
@@ -19,7 +18,7 @@ var (
 	ShareWorkerQueueSize = 10000
 	requestTimeout       = time.Second * 10
 
-	errUnknownRequestType = errors.New("unknwon request type for sharing")
+	errUnknownRequestType = errors.New("unknown request type for sharing")
 )
 
 const (
@@ -27,12 +26,11 @@ const (
 )
 
 type ShareQueue struct {
-	name                 string
-	log                  *slog.Logger
-	queue                chan *ParsedRequest
-	updatePeers          chan []ConfighubBuilder
-	localBuilderEndpoint string
-	signer               *signature.Signer
+	name        string
+	log         *slog.Logger
+	queue       chan *ParsedRequest
+	updatePeers chan []ConfighubBuilder
+	signer      *signature.Signer
 	// if > 0 share queue will spawn multiple senders per peer
 	workersPerPeer int
 }
@@ -73,23 +71,7 @@ func (sq *ShareQueue) Run() {
 	if sq.workersPerPeer > 0 {
 		workersPerPeer = sq.workersPerPeer
 	}
-	var (
-		localBuilder *shareQueuePeer
-		peers        []shareQueuePeer
-	)
-	if len(sq.localBuilderEndpoint) > 0 {
-		client, err := NewFastHTTPClient(nil, workersPerPeer)
-		if err != nil {
-			sq.log.Error("Failed to intitialize local builder enpoint")
-			os.Exit(1)
-		}
-		builderPeer := newShareQueuePeer("local-builder", client, ConfighubBuilder{}, sq.localBuilderEndpoint)
-		localBuilder = &builderPeer
-		for worker := range workersPerPeer {
-			go sq.proxyRequests(localBuilder, worker)
-		}
-		defer localBuilder.Close()
-	}
+	var peers []shareQueuePeer
 	for {
 		select {
 		case req, more := <-sq.queue:
@@ -97,9 +79,6 @@ func (sq *ShareQueue) Run() {
 			if !more {
 				sq.log.Info("Share queue closing, queue channel closed")
 				return
-			}
-			if localBuilder != nil {
-				localBuilder.SendRequest(sq.log, req)
 			}
 			if !req.systemEndpoint {
 				for _, peer := range peers {
@@ -166,6 +145,83 @@ func (sq *ShareQueue) Run() {
 	}
 }
 
+type LocalBuilderSender struct {
+	logger   *slog.Logger
+	client   *fasthttp.Client
+	endpoint string
+}
+
+func NewLocalBuilderSender(logger *slog.Logger, endpoint string, maxOpenConnections int) (LocalBuilderSender, error) {
+	logger = logger.With(slog.String("peer", "local-builder"))
+
+	client, err := NewFastHTTPClient(nil, maxOpenConnections)
+	if err != nil {
+		return LocalBuilderSender{}, err
+	}
+
+	return LocalBuilderSender{
+		logger, client, endpoint,
+	}, nil
+}
+
+func (s *LocalBuilderSender) SendRequest(req *ParsedRequest) error {
+	request := fasthttp.AcquireRequest()
+	request.SetRequestURI(s.endpoint)
+	request.Header.SetMethod(http.MethodPost)
+	request.Header.SetContentTypeBytes([]byte("application/json"))
+	defer fasthttp.ReleaseRequest(request)
+
+	return sendShareRequest(s.logger, req, request, s.client, "local-builder")
+}
+
+func sendShareRequest(logger *slog.Logger, req *ParsedRequest, request *fasthttp.Request, client *fasthttp.Client, peerName string) error {
+	if req.serializedJSONRPCRequest == nil {
+		logger.Debug("Skip sharing request that is not serialized properly")
+		return nil
+	}
+
+	timeInQueue := time.Since(req.receivedAt)
+
+	request.Header.Set(signature.HTTPHeader, req.signatureHeader)
+	request.SetBodyRaw(req.serializedJSONRPCRequest)
+
+	resp := fasthttp.AcquireResponse()
+	start := time.Now()
+	err := client.DoTimeout(request, resp, requestTimeout)
+	requestDuration := time.Since(start)
+	timeE2E := timeInQueue + requestDuration
+
+	// in background update metrics and handle response
+	go func() {
+		isBig := req.size >= bigRequestSize
+		timeShareQueuePeerQueueDuration(peerName, timeInQueue, req.method, req.systemEndpoint, isBig)
+		timeShareQueuePeerRPCDuration(peerName, requestDuration.Milliseconds(), isBig)
+		timeShareQueuePeerE2EDuration(peerName, timeE2E, req.method, req.systemEndpoint, isBig)
+
+		logSendErrorLevel := slog.LevelDebug
+		if peerName == "local-builder" {
+			logSendErrorLevel = slog.LevelWarn
+		}
+		if err != nil {
+			logger.Log(context.Background(), logSendErrorLevel, "Error while proxying request", slog.Any("error", err))
+			incShareQueuePeerRPCErrors(peerName)
+		} else {
+			var parsedResp jsonrpc.JSONRPCResponse
+			err = json.Unmarshal(resp.Body(), &parsedResp)
+			if err != nil {
+				logger.Log(context.Background(), logSendErrorLevel, "Error parsing response while proxying", slog.Any("error", err))
+				incShareQueuePeerRPCErrors(peerName)
+			} else if parsedResp.Error != nil {
+				logger.Log(context.Background(), logSendErrorLevel, "Error returned from target while proxying", slog.Any("error", parsedResp.Error))
+				incShareQueuePeerRPCErrors(peerName)
+			}
+		}
+		fasthttp.ReleaseResponse(resp)
+	}()
+
+	return nil
+}
+
 func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 	proxiedRequestCount := 0
 	logger := sq.log.With(slog.String("peer", peer.name), slog.String("name", sq.name), slog.Int("worker", worker))
@@ -191,44 +247,10 @@ func (sq *ShareQueue) proxyRequests(peer *shareQueuePeer, worker int) {
 			continue
 		}
 
-		timeInQueue := time.Since(req.receivedAt)
-
-		request.Header.Set(signature.HTTPHeader, req.signatureHeader)
-		request.SetBodyRaw(req.serializedJSONRPCRequest)
-
-		resp := fasthttp.AcquireResponse()
-		start := time.Now()
-		err := peer.client.DoTimeout(request, resp, requestTimeout)
-		requestDuration := time.Since(start)
-		timeE2E := timeInQueue + requestDuration
-
-		// in background update metrics and handle response
-		go func() {
-			isBig := req.size >= bigRequestSize
-			timeShareQueuePeerQueueDuration(peer.name, timeInQueue, req.method, req.systemEndpoint, isBig)
-			timeShareQueuePeerRPCDuration(peer.name, requestDuration.Milliseconds(), isBig)
-			timeShareQueuePeerE2EDuration(peer.name, timeE2E, req.method, req.systemEndpoint, isBig)
-
-			logSendErrorLevel := slog.LevelDebug
-			if peer.name == "local-builder" {
-				logSendErrorLevel = slog.LevelWarn
-			}
-			if err != nil {
-				logger.Log(context.Background(), logSendErrorLevel, "Error while proxying request", slog.Any("error", err))
-				incShareQueuePeerRPCErrors(peer.name)
-			} else {
-				var parsedResp jsonrpc.JSONRPCResponse
-				err = json.Unmarshal(resp.Body(), &parsedResp)
-				if err != nil {
-					logger.Log(context.Background(), logSendErrorLevel, "Error parsing response while proxying", slog.Any("error", err))
-					incShareQueuePeerRPCErrors(peer.name)
-				} else if parsedResp.Error != nil {
-					logger.Log(context.Background(), logSendErrorLevel, "Error returned from target while proxying", slog.Any("error", parsedResp.Error))
-					incShareQueuePeerRPCErrors(peer.name)
-				}
-			}
-			fasthttp.ReleaseResponse(resp)
-		}()
+		err := sendShareRequest(logger, req, request, peer.client, peer.name)
+		if err != nil {
+			logger.Debug("Failed to proxy a request", slog.Any("error", err))
+		}
 
 		proxiedRequestCount += 1
 		logger.Debug("Message proxied")

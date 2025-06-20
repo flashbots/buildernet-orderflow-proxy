@@ -39,9 +39,6 @@ type ReceiverProxy struct {
 
 	OrderflowSigner *signature.Signer
 
-	localBuilder         rpcclient.RPCClient
-	localBuilderEndpoint string
-
 	UserHandler   http.Handler
 	SystemHandler http.Handler
 
@@ -61,6 +58,8 @@ type ReceiverProxy struct {
 	peerUpdaterClose chan struct{}
 
 	userAPIRateLimiter *rate.Limiter
+
+	localBuilderSender LocalBuilderSender
 }
 
 type ReceiverProxyConstantConfig struct {
@@ -68,6 +67,7 @@ type ReceiverProxyConstantConfig struct {
 	// Name is optional field and it used to distringuish multiple proxies when running in the same process in tests
 	Name                   string
 	FlashbotsSignerAddress common.Address
+	LocalBuilderEndpoint   string
 }
 
 type ReceiverProxyConfig struct {
@@ -76,7 +76,6 @@ type ReceiverProxyConfig struct {
 	BuilderConfigHubEndpoint string
 	ArchiveEndpoint          string
 	ArchiveConnections       int
-	LocalBuilderEndpoint     string
 
 	// EthRPC should support eth_blockNumber API
 	EthRPC string
@@ -94,26 +93,23 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		return nil, err
 	}
 
-	localCl := HTTPClientLocalhost(DefaultLocalhostMaxIdleConn)
-
-	localBuilder := rpcclient.NewClientWithOpts(config.LocalBuilderEndpoint, &rpcclient.RPCClientOpts{
-		HTTPClient: localCl,
-	})
-
 	limit := rate.Limit(config.MaxUserRPS)
 	if config.MaxUserRPS == 0 {
 		limit = rate.Inf
 	}
 	userAPIRateLimiter := rate.NewLimiter(limit, config.MaxUserRPS)
+	localBuilderSender, err := NewLocalBuilderSender(config.Log, config.LocalBuilderEndpoint, config.ConnectionsPerPeer)
+	if err != nil {
+		return nil, err
+	}
 	prx := &ReceiverProxy{
 		ReceiverProxyConstantConfig: config.ReceiverProxyConstantConfig,
 		ConfigHub:                   NewBuilderConfigHub(config.Log, config.BuilderConfigHubEndpoint),
 		OrderflowSigner:             orderflowSigner,
-		localBuilder:                localBuilder,
-		localBuilderEndpoint:        config.LocalBuilderEndpoint,
 		requestUniqueKeysRLU:        expirable.NewLRU[uuid.UUID, struct{}](requestsRLUSize, nil, requestsRLUTTL),
 		replacementNonceRLU:         expirable.NewLRU[replacementNonceKey, int](replacementNonceSize, nil, replacementNonceTTL),
 		userAPIRateLimiter:          userAPIRateLimiter,
+		localBuilderSender:          localBuilderSender,
 	}
 	maxRequestBodySizeBytes := DefaultMaxRequestBodySizeBytes
 	if config.MaxRequestBodySizeBytes != 0 {
@@ -138,13 +134,12 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 	prx.updatePeers = updatePeersCh
 
 	queue := ShareQueue{
-		name:                 prx.Name,
-		log:                  prx.Log,
-		queue:                shareQeueuCh,
-		updatePeers:          updatePeersCh,
-		localBuilderEndpoint: config.LocalBuilderEndpoint,
-		signer:               prx.OrderflowSigner,
-		workersPerPeer:       config.ConnectionsPerPeer,
+		name:           prx.Name,
+		log:            prx.Log,
+		queue:          shareQeueuCh,
+		updatePeers:    updatePeersCh,
+		signer:         prx.OrderflowSigner,
+		workersPerPeer: config.ConnectionsPerPeer,
 	}
 	go queue.Run()
 

@@ -212,16 +212,19 @@ func runMain(cCtx *cli.Context) error {
 	maxUserRPS := cCtx.Int(flagMaxUserRPS)
 
 	proxyConfig := &proxy.ReceiverProxyConfig{
-		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{Log: log, FlashbotsSignerAddress: flashbotsSignerAddress},
-		BuilderConfigHubEndpoint:    builderConfigHubEndpoint,
-		ArchiveEndpoint:             archiveEndpoint,
-		ArchiveConnections:          connectionsPerPeer,
-		LocalBuilderEndpoint:        builderEndpoint,
-		EthRPC:                      rpcEndpoint,
-		MaxRequestBodySizeBytes:     maxRequestBodySizeBytes,
-		ConnectionsPerPeer:          connectionsPerPeer,
-		MaxUserRPS:                  maxUserRPS,
-		ArchiveWorkerCount:          archiveWorkerCount,
+		ReceiverProxyConstantConfig: proxy.ReceiverProxyConstantConfig{
+			Log:                    log,
+			FlashbotsSignerAddress: flashbotsSignerAddress,
+			LocalBuilderEndpoint:   builderEndpoint,
+		},
+		BuilderConfigHubEndpoint: builderConfigHubEndpoint,
+		ArchiveEndpoint:          archiveEndpoint,
+		ArchiveConnections:       connectionsPerPeer,
+		EthRPC:                   rpcEndpoint,
+		MaxRequestBodySizeBytes:  maxRequestBodySizeBytes,
+		ConnectionsPerPeer:       connectionsPerPeer,
+		MaxUserRPS:               maxUserRPS,
+		ArchiveWorkerCount:       archiveWorkerCount,
 	}
 
 	instance, err := proxy.NewReceiverProxy(*proxyConfig)
