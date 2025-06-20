@@ -121,7 +121,7 @@ func (s *sharedState) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var request jsonRPCRequest
-	err := json.Unmarshal(body, &request)
+	err = json.Unmarshal(body, &request)
 	if err != nil {
 		return
 	}
