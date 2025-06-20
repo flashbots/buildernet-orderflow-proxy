@@ -407,6 +407,15 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "serialize_parsed_request")
 	startAt = time.Now()
 
+	// since we always send to local builder we do it here to avoid queue
+
+	err = prx.localBuilderSender.SendRequest(&parsedRequest)
+	if err != nil {
+		prx.Log.Debug("Failed to send request to a local builder", slog.Any("error", err))
+	}
+
+	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "local_builder")
+
 	// since we send to local builder while handling the request we can skip sharing request
 	if !parsedRequest.systemEndpoint {
 		select {
@@ -428,15 +437,6 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 	}
 
 	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "archive_queue")
-	startAt = time.Now()
-	// since we always send to local builder we do it here to avoid queue entirery
-
-	err = prx.localBuilderSender.SendRequest(&parsedRequest)
-	if err != nil {
-		prx.Log.Debug("Failed to send request to a local builder", slog.Any("error", err))
-	}
-
-	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "local_builder")
 	return nil
 }
 
