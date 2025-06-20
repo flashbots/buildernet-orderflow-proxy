@@ -408,13 +408,12 @@ func (prx *ReceiverProxy) HandleParsedRequest(ctx context.Context, parsedRequest
 	startAt = time.Now()
 
 	// since we always send to local builder we do it here to avoid queue
-
-	err = prx.localBuilderSender.SendRequest(&parsedRequest)
-	if err != nil {
-		prx.Log.Debug("Failed to send request to a local builder", slog.Any("error", err))
-	}
-
-	incRequestDurationStep(time.Since(startAt), parsedRequest.method, "", "local_builder")
+	go func() {
+		err = prx.localBuilderSender.SendRequest(&parsedRequest)
+		if err != nil {
+			prx.Log.Debug("Failed to send request to a local builder", slog.Any("error", err))
+		}
+	}()
 
 	// since we send to local builder while handling the request we can skip sharing request
 	if !parsedRequest.systemEndpoint {

@@ -191,33 +191,30 @@ func sendShareRequest(logger *slog.Logger, req *ParsedRequest, request *fasthttp
 	requestDuration := time.Since(start)
 	timeE2E := timeInQueue + requestDuration
 
-	// in background update metrics and handle response
-	go func() {
-		isBig := req.size >= bigRequestSize
-		timeShareQueuePeerQueueDuration(peerName, timeInQueue, req.method, req.systemEndpoint, isBig)
-		timeShareQueuePeerRPCDuration(peerName, requestDuration.Milliseconds(), isBig)
-		timeShareQueuePeerE2EDuration(peerName, timeE2E, req.method, req.systemEndpoint, isBig)
+	isBig := req.size >= bigRequestSize
+	timeShareQueuePeerQueueDuration(peerName, timeInQueue, req.method, req.systemEndpoint, isBig)
+	timeShareQueuePeerRPCDuration(peerName, requestDuration.Milliseconds(), isBig)
+	timeShareQueuePeerE2EDuration(peerName, timeE2E, req.method, req.systemEndpoint, isBig)
 
-		logSendErrorLevel := slog.LevelDebug
-		if peerName == "local-builder" {
-			logSendErrorLevel = slog.LevelWarn
-		}
+	logSendErrorLevel := slog.LevelDebug
+	if peerName == "local-builder" {
+		logSendErrorLevel = slog.LevelWarn
+	}
+	if err != nil {
+		logger.Log(context.Background(), logSendErrorLevel, "Error while proxying request", slog.Any("error", err))
+		incShareQueuePeerRPCErrors(peerName)
+	} else {
+		var parsedResp jsonrpc.JSONRPCResponse
+		err = json.Unmarshal(resp.Body(), &parsedResp)
 		if err != nil {
-			logger.Log(context.Background(), logSendErrorLevel, "Error while proxying request", slog.Any("error", err))
+			logger.Log(context.Background(), logSendErrorLevel, "Error parsing response while proxying", slog.Any("error", err))
 			incShareQueuePeerRPCErrors(peerName)
-		} else {
-			var parsedResp jsonrpc.JSONRPCResponse
-			err = json.Unmarshal(resp.Body(), &parsedResp)
-			if err != nil {
-				logger.Log(context.Background(), logSendErrorLevel, "Error parsing response while proxying", slog.Any("error", err))
-				incShareQueuePeerRPCErrors(peerName)
-			} else if parsedResp.Error != nil {
-				logger.Log(context.Background(), logSendErrorLevel, "Error returned from target while proxying", slog.Any("error", parsedResp.Error))
-				incShareQueuePeerRPCErrors(peerName)
-			}
+		} else if parsedResp.Error != nil {
+			logger.Log(context.Background(), logSendErrorLevel, "Error returned from target while proxying", slog.Any("error", parsedResp.Error))
+			incShareQueuePeerRPCErrors(peerName)
 		}
-		fasthttp.ReleaseResponse(resp)
-	}()
+	}
+	fasthttp.ReleaseResponse(resp)
 
 	return nil
 }
