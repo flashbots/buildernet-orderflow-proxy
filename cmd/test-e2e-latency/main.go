@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -64,8 +65,19 @@ func main() {
 			slog.Info("Ordeflow signing address", "address", orderflowSigner.Address())
 
 			localOrderflowEndpoint := cCtx.String("local-orderflow-endpoint")
+
+			tr := &http.Transport{
+				TLSClientConfig: &tls.Config{
+					//nolint:gosec
+					InsecureSkipVerify: true,
+				},
+			}
+
 			client := rpcclient.NewClientWithOpts(localOrderflowEndpoint, &rpcclient.RPCClientOpts{
 				Signer: orderflowSigner,
+				HTTPClient: &http.Client{
+					Transport: tr,
+				},
 			})
 			slog.Info("Created client")
 
