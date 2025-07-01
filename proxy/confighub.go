@@ -14,14 +14,34 @@ import (
 )
 
 type ConfighubOrderflowProxyCredentials struct {
-	TLSCert            string         `json:"tls_cert"`
+	TLSCert            string         `json:"tls_cert,omitempty"` // for backward compatibility
 	EcdsaPubkeyAddress common.Address `json:"ecdsa_pubkey_address"`
+}
+
+type ConfighubInstanceData struct {
+	TLSCert string `json:"tls_cert"`
 }
 
 type ConfighubBuilder struct {
 	Name           string                             `json:"name"`
 	IP             string                             `json:"ip"`
+	DNSName        string                             `json:"dns_name"`
 	OrderflowProxy ConfighubOrderflowProxyCredentials `json:"orderflow_proxy"`
+	Instance       ConfighubInstanceData              `json:"instance"`
+}
+
+func (b *ConfighubBuilder) SystemAPIAddress() string {
+	if b.DNSName != "" {
+		return OrderflowProxyURLFromIPOrDNSName(b.DNSName)
+	}
+	return OrderflowProxyURLFromIPOrDNSName(b.IP)
+}
+
+func (b *ConfighubBuilder) TLSCert() string {
+	if b.Instance.TLSCert != "" {
+		return b.Instance.TLSCert
+	}
+	return b.OrderflowProxy.TLSCert
 }
 
 type BuilderConfigHub struct {
