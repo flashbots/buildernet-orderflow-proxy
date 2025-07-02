@@ -188,6 +188,11 @@ func (prx *SenderProxy) HandleParsedRequest(ctx context.Context, parsedRequest P
 	parsedRequest.systemEndpoint = false
 	prx.Log.Debug("Received request", slog.String("method", parsedRequest.method))
 
+	err := SerializeParsedRequestForSharing(&parsedRequest, prx.OrderflowSigner)
+	if err != nil {
+		prx.Log.Warn("Failed to serialize request for sharing", slog.Any("error", err))
+	}
+
 	select {
 	case <-ctx.Done():
 	case prx.shareQueue <- &parsedRequest:
