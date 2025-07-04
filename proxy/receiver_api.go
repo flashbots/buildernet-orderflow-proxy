@@ -80,14 +80,19 @@ func (prx *ReceiverProxy) UserJSONRPCHandler(maxRequestBodySizeBytes int64) (*rp
 
 // readyHandler calls /readyz on rbuilder
 func (prx *ReceiverProxy) readyHandler(w http.ResponseWriter, r *http.Request) error {
-	resp, err := http.Get(prx.LocalBuilderEndpoint + "/readyz")
+	if prx.builderReadyEndpoint == "" {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ready"))
+		return nil
+	}
+
+	resp, err := http.Get(prx.builderReadyEndpoint + "/readyz")
 	if err != nil {
 		prx.Log.Warn("Failed to check builder readiness", slog.Any("error", err))
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 		return nil
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
 		return nil
@@ -95,7 +100,7 @@ func (prx *ReceiverProxy) readyHandler(w http.ResponseWriter, r *http.Request) e
 
 	// If the builder is ready, return 200 OK
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ready"))
+	_, _ = w.Write([]byte("OK"))
 	return nil
 }
 

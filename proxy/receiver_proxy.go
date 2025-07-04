@@ -60,6 +60,8 @@ type ReceiverProxy struct {
 	userAPIRateLimiter *rate.Limiter
 
 	localBuilderSender LocalBuilderSender
+
+	builderReadyEndpoint string
 }
 
 type ReceiverProxyConstantConfig struct {
@@ -76,6 +78,7 @@ type ReceiverProxyConfig struct {
 	BuilderConfigHubEndpoint string
 	ArchiveEndpoint          string
 	ArchiveConnections       int
+	BuilderReadyEndpoint     string
 
 	// EthRPC should support eth_blockNumber API
 	EthRPC string
@@ -110,6 +113,7 @@ func NewReceiverProxy(config ReceiverProxyConfig) (*ReceiverProxy, error) {
 		replacementNonceRLU:         expirable.NewLRU[replacementNonceKey, int](replacementNonceSize, nil, replacementNonceTTL),
 		userAPIRateLimiter:          userAPIRateLimiter,
 		localBuilderSender:          localBuilderSender,
+		builderReadyEndpoint:        config.BuilderReadyEndpoint,
 	}
 	maxRequestBodySizeBytes := DefaultMaxRequestBodySizeBytes
 	if config.MaxRequestBodySizeBytes != 0 {

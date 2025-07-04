@@ -47,6 +47,12 @@ var flags = []cli.Flag{
 		EnvVars: []string{"BUILDER_ENDPOINT"},
 	},
 	&cli.StringFlag{
+		Name:    "builder-ready-endpoint",
+		Value:   "http://127.0.0.1:6070",
+		Usage:   "address to send /readyz to",
+		EnvVars: []string{"BUILDER_READY_ENDPOINT"},
+	},
+	&cli.StringFlag{
 		Name:    "rpc-endpoint",
 		Value:   "http://127.0.0.1:8545",
 		Usage:   "address of the node RPC that supports eth_blockNumber",
@@ -201,6 +207,7 @@ func runMain(cCtx *cli.Context) error {
 
 	builderEndpoint := cCtx.String("builder-endpoint")
 	rpcEndpoint := cCtx.String("rpc-endpoint")
+	builderReadyEndpoint := cCtx.String("builder-ready-endpoint")
 
 	builderConfigHubEndpoint := cCtx.String("builder-confighub-endpoint")
 	archiveEndpoint := cCtx.String("orderflow-archive-endpoint")
@@ -220,6 +227,7 @@ func runMain(cCtx *cli.Context) error {
 		BuilderConfigHubEndpoint: builderConfigHubEndpoint,
 		ArchiveEndpoint:          archiveEndpoint,
 		ArchiveConnections:       connectionsPerPeer,
+		BuilderReadyEndpoint:     builderReadyEndpoint,
 		EthRPC:                   rpcEndpoint,
 		MaxRequestBodySizeBytes:  maxRequestBodySizeBytes,
 		ConnectionsPerPeer:       connectionsPerPeer,
