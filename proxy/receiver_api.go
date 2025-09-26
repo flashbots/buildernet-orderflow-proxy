@@ -32,8 +32,6 @@ var (
 	errSubsidyWrongCaller   = errors.New("subsidy can only be called by Flashbots")
 	errRateLimiting         = errors.New("requests to user API are rate limited")
 
-	errUUIDParse = errors.New("failed to parse UUID")
-
 	apiNow = time.Now
 
 	handleParsedRequestTimeout = time.Second * 1
@@ -230,11 +228,8 @@ func (prx *ReceiverProxy) MevSendBundle(ctx context.Context, mevSendBundle rpcty
 		mevSendBundle.Metadata = &rpctypes.MevBundleMetadata{
 			Signer: &parsedRequest.signer,
 		}
-		if mevSendBundle.ReplacementUUID != "" {
-			replUUID, err := uuid.Parse(mevSendBundle.ReplacementUUID)
-			if err != nil {
-				return errors.Join(errUUIDParse, err)
-			}
+		if mevSendBundle.ReplacementUUID != nil {
+			replUUID := *mevSendBundle.ReplacementUUID
 			replacementKey := replacementNonceKey{
 				uuid:   replUUID,
 				signer: parsedRequest.signer,

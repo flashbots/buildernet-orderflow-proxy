@@ -23,6 +23,7 @@ import (
 	"github.com/flashbots/go-utils/rpctypes"
 	"github.com/flashbots/go-utils/signature"
 	utils_tls "github.com/flashbots/go-utils/tls"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -370,7 +371,8 @@ func TestProxyBundleRequestWithPeerUpdate(t *testing.T) {
 	proxiesUpdatePeers(t)
 
 	blockNumber = hexutil.Uint64(1002)
-	replacementUUID := "550e8400-e29b-41d4-a716-446655440000"
+
+	replacementUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	_, err = client.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
 		BlockNumber:     &blockNumber,
 		ReplacementUUID: &replacementUUID,
@@ -497,9 +499,10 @@ func TestProxyShareBundleReplacementUUIDAndCancellation(t *testing.T) {
 	proxiesUpdatePeers(t)
 
 	// first call
+	repalcementUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	resp, err := client.Call(context.Background(), MevSendBundleMethod, &rpctypes.MevSendBundleArgs{
 		Version:         "v0.1",
-		ReplacementUUID: "550e8400-e29b-41d4-a716-446655440000",
+		ReplacementUUID: &repalcementUUID,
 		Inclusion: rpctypes.MevBundleInclusion{
 			BlockNumber: 10,
 		},
@@ -518,9 +521,10 @@ func TestProxyShareBundleReplacementUUIDAndCancellation(t *testing.T) {
 	require.Equal(t, expectedRequest, builderRequest.body)
 
 	// second call
+	replacementUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	resp, err = client.Call(context.Background(), MevSendBundleMethod, &rpctypes.MevSendBundleArgs{
 		Version:         "v0.1",
-		ReplacementUUID: "550e8400-e29b-41d4-a716-446655440000",
+		ReplacementUUID: &replacementUUID,
 		Inclusion: rpctypes.MevBundleInclusion{
 			BlockNumber: 10,
 		},
@@ -541,7 +545,7 @@ func TestProxyShareBundleReplacementUUIDAndCancellation(t *testing.T) {
 	// cancell
 	resp, err = client.Call(context.Background(), MevSendBundleMethod, &rpctypes.MevSendBundleArgs{
 		Version:         "v0.1",
-		ReplacementUUID: "550e8400-e29b-41d4-a716-446655440000",
+		ReplacementUUID: &replacementUUID,
 	})
 	require.NoError(t, err)
 	require.Nil(t, resp.Error)
@@ -620,7 +624,7 @@ func TestValidateLocalBundles(t *testing.T) {
 	expectNoRequest(t, proxies[0].localBuilderRequests)
 
 	blockNumber = hexutil.Uint64(124)
-	uid := "52840671-89dc-484f-80f6-401753513ba9"
+	uid := uuid.MustParse("52840671-89dc-484f-80f6-401753513ba9")
 	resp, err = client.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
 		BlockNumber: &blockNumber,
 		UUID:        &uid,
@@ -653,7 +657,7 @@ func TestValidateLocalBundles(t *testing.T) {
 	expectNoRequest(t, proxies[0].localBuilderRequests)
 
 	blockNumber = hexutil.Uint64(125)
-	uid = "4749af2a-1b99-45f2-a9bf-827cc0840964"
+	uid = uuid.MustParse("4749af2a-1b99-45f2-a9bf-827cc0840964")
 	version := rpctypes.BundleVersionV1
 	resp, err = pubClient.Call(context.Background(), EthSendBundleMethod, &rpctypes.EthSendBundleArgs{
 		BlockNumber: &blockNumber,

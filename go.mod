@@ -8,7 +8,7 @@ require (
 	github.com/VictoriaMetrics/metrics v1.35.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/ethereum/go-ethereum v1.15.5
-	github.com/flashbots/go-utils v0.14.0
+	github.com/flashbots/go-utils v0.15.1-0.20250926154733-c032999a9c01
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7

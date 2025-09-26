@@ -34,8 +34,8 @@ github.com/ethereum/go-ethereum v1.15.5 h1:Fo2TbBWC61lWVkFw9tsMoHCNX1ndpuaQBRJ8H
 github.com/ethereum/go-ethereum v1.15.5/go.mod h1:1LG2LnMOx2yPRHR/S+xuipXH29vPr6BIH6GElD8N/fo=
 github.com/ethereum/go-verkle v0.2.2 h1:I2W0WjnrFUIzzVPwm8ykY+7pL2d4VhlsePn4j7cnFk8=
 github.com/ethereum/go-verkle v0.2.2/go.mod h1:M3b90YRnzqKyyzBEWJGqj8Qff4IDeXnzFw0P9bFw3uk=
-github.com/flashbots/go-utils v0.14.0 h1:gg9UAGWhwMrnnhY/wV9W5TPRUhhM8GS6bFh4H2VqgsA=
-github.com/flashbots/go-utils v0.14.0/go.mod h1:vESXnJKP/r6WRrf8pr87Dr0gJdkGUpzOiMae8yangEc=
+github.com/flashbots/go-utils v0.15.1-0.20250926154733-c032999a9c01 h1:QgHnB0L4qhZrCBdc7imoaYRlOhi+7v9DaO+638NoQ7U=
+github.com/flashbots/go-utils v0.15.1-0.20250926154733-c032999a9c01/go.mod h1:vESXnJKP/r6WRrf8pr87Dr0gJdkGUpzOiMae8yangEc=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
 github.com/goccy/go-json v0.10.5 h1:Fq85nIqj+gXn/S5ahsiTlK3TmC85qgirsdTP/+DeaC4=

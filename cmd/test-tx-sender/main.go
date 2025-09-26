@@ -83,8 +83,7 @@ func main() {
 			slog.Info("Sent eth_sendRawTransaction")
 
 			// send eth_sendBundle
-			replacementUUIDTyped := uuid.New()
-			repacementUUID := replacementUUIDTyped.String()
+			repacementUUID := uuid.New()
 			slog.Info("Using the following replacement UUID", "value", repacementUUID)
 			blockNumber := hexutil.Uint64(block)
 			bundleArgs := rpctypes.EthSendBundleArgs{
@@ -124,7 +123,7 @@ func main() {
 			// send mev_sendBundle (normal bundle)
 			sbundleArgs := rpctypes.MevSendBundleArgs{
 				Version:         "v0.1",
-				ReplacementUUID: repacementUUID,
+				ReplacementUUID: &repacementUUID,
 				Inclusion: rpctypes.MevBundleInclusion{
 					BlockNumber: hexutil.Uint64(block),
 				},
@@ -153,7 +152,7 @@ func main() {
 			// send mev_sendBundle (cancellation bundle)
 			sbundleCancelArgs := rpctypes.MevSendBundleArgs{
 				Version:         "v0.1",
-				ReplacementUUID: repacementUUID,
+				ReplacementUUID: &repacementUUID,
 			}
 			resp, err = client.Call(context.Background(), "mev_sendBundle", sbundleCancelArgs)
 			if err != nil {
