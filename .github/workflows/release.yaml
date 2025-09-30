@@ -1,98 +1,51 @@
 name: Release
 
 on:
-  # push:
-  #   tags:
-  #     - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "The desired tag for the release (e.g. v0.1.0)."
+        required: true
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-  KANIKO_VERSION: gcr.io/kaniko-project/executor@sha256:9e69fd4330ec887829c780f5126dd80edc663df6def362cd22e79bcdf00ac53f
+permissions:
+  contents: write
 
 jobs:
-  build-binary:
-    name: Build binary
+  build-and-release:
     runs-on: ubuntu-latest
-    container:
-      image: golang:1.24rc2-bullseye@sha256:236da40764c1bcf469fcaf6ca225ca881c3f06cbd1934e392d6e4af3484f6cac
+    env:
+      VERSION: ${{ github.event.inputs.release_tag }}
     steps:
-      - name: Checkout sources
+      - name: Check out repository code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.release_tag }}
+
+      - name: 🐿 Setup Golang
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Download dependencies
+        run: go mod download
 
       - name: Build binaries
         run: make build
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4.5.0
-        with:
-          path: build/
-
-  build-receiver-image:
-    name: Build Receiver Docker Image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-receiver
-          tags: |
-            type=sha
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Push with Kaniko
+      - name: Generate checksums
         run: |
-          mkdir -p /home/runner/.docker
+          cd build
+          sha256sum receiver-proxy sender-proxy > SHA256SUMS
 
-          echo '{"auths":{"${{ env.REGISTRY }}":{"auth":"'$(echo -n "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" | base64)'"}}}'> /home/runner/.docker/config.json
-
-          docker run \
-            -v ${{ github.workspace }}:/workspace \
-            -v /home/runner/.docker/config.json:/kaniko/.docker/config.json \
-            ${{ env.KANIKO_VERSION }} \
-            --context /workspace \
-            --dockerfile /workspace/receiver.dockerfile \
-            --reproducible \
-            --cache=true \
-            --cache-repo ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cache \
-            --destination ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-receiver:${{ steps.meta.outputs.version }} \
-            ${{ steps.meta.outputs.tags }}
-
-  github-release:
-    runs-on: ubuntu-latest
-    needs: [build-binary, build-receiver-image]
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release and upload binaries
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
+          name: OrderflowProxy ${{ github.event.inputs.release_tag }}
+          tag_name: ${{ github.event.inputs.release_tag }}
+          files: |
+            build/receiver-proxy
+            build/sender-proxy
+            build/SHA256SUMS
+          generate_release_notes: true
